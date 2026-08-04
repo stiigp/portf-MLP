@@ -1,5 +1,0 @@
-com\panucci\mlp\dto\MlpStatus.class
-com\panucci\mlp\MlpApplication.class
-com\panucci\mlp\config\WebSocketConfig.class
-com\panucci\mlp\controller\MlpSocketController.class
-com\panucci\mlp\services\MlpTrainingService.class
