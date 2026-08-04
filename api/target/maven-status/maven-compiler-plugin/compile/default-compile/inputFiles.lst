@@ -1,5 +1,14 @@
 C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\config\WebSocketConfig.java
 C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\controller\MlpSocketController.java
+C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\core\dataprocessing\DataProcesser.java
+C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\core\dataprocessing\Reader.java
+C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\core\datastructures\EntradaMLP.java
+C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\core\datastructures\EntradaPerceptron.java
+C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\core\datastructures\MLP.java
+C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\core\datastructures\Perceptron.java
+C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\core\util\ActivationFunction.java
+C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\core\util\ConfusionMatrix.java
+C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\core\util\MathUtil.java
 C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\dto\MlpStatus.java
 C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\MlpApplication.java
 C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\services\MlpTrainingService.java
