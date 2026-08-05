@@ -7,6 +7,7 @@ import com.panucci.mlp.dto.InputSnapshot;
 import com.panucci.mlp.dto.LayerSnapshot;
 import com.panucci.mlp.dto.PerceptronSnapshot;
 import com.panucci.mlp.dto.TrainingEvent;
+import com.panucci.mlp.listeners.TrainingListener;
 
 import tech.tablesaw.api.ColumnType;
 import tech.tablesaw.api.Row;
@@ -27,13 +28,15 @@ public class MLP {
     protected double erroRede;
 
     protected int nCamadasOcultas, nPerceptronsPorCamadaOculta;
+    protected TrainingListener listener;
 
-    public MLP(int nCamadasOcultas, ActivationFunction activationFunction, double taxaDeAprendizado) {
+    public MLP(int nCamadasOcultas, ActivationFunction activationFunction, double taxaDeAprendizado, TrainingListener listener) {
         this.nCamadasOcultas = nCamadasOcultas;
         this.activationFunction = activationFunction;
         this.camadasOcultas = new ArrayList<>();
         this.taxaDeAprendizado = taxaDeAprendizado;
         this.erroRede = Double.MAX_VALUE;
+        this.listener = listener;
     }
 
     public void train(Table trainTable, String nomeAtributoTarget, double erroParada, int maxEpochs) {
@@ -73,10 +76,14 @@ public class MLP {
         int contadorEpochs = 0;
         List<Double> ultimos10Erros = new ArrayList<>();
 
+        this.listener.onTrainingStartEvent(snapshot("TRAINING_START", null, contadorEpochs, 0));
         while (this.erroRede > erroParada && contadorEpochs < maxEpochs) {
             for (int i = 0; i < entradasTreino.size(); i ++) {
                 this.atualizaEntradasAndSaidasEsperadas(entradasTreino.get(i), saidasEsperadas.get(i));
+                this.listener.onForwardPassEvent(snapshot("FORWARD_PASS", null, contadorEpochs, i));
+
                 backPropagation();
+                this.listener.onWeightsUpdateEvent(snapshot("WEIGHTS_UPDATE", null, contadorEpochs, i));
             }
 
             if (ultimos10Erros.size() < 10) {
@@ -95,6 +102,8 @@ public class MLP {
 
         if (contadorEpochs == maxEpochs)
             System.out.println("Treinamento parou pelo limite de épocas!");
+
+        this.listener.onTrainingEndEvent(snapshot("TRAINING_END", null, contadorEpochs, 0));
     }
 
     public double test(Table testTable, String nomeAtributoTarget) {

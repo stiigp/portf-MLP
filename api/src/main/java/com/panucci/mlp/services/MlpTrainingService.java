@@ -10,5 +10,7 @@ public class MlpTrainingService {
     public MlpTrainingService() {
         
     }
-    
+
+    public void startTraining() {
+    }
 }
