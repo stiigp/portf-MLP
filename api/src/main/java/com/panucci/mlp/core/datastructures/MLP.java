@@ -3,6 +3,11 @@ package com.panucci.mlp.core.datastructures;
 import com.panucci.mlp.core.util.ActivationFunction;
 import com.panucci.mlp.core.util.ConfusionMatrix;
 import com.panucci.mlp.core.util.MathUtil;
+import com.panucci.mlp.dto.InputSnapshot;
+import com.panucci.mlp.dto.LayerSnapshot;
+import com.panucci.mlp.dto.PerceptronSnapshot;
+import com.panucci.mlp.dto.TrainingEvent;
+
 import tech.tablesaw.api.ColumnType;
 import tech.tablesaw.api.Row;
 import tech.tablesaw.api.Table;
@@ -454,4 +459,131 @@ public class MLP {
     public void exibeConfusionMatrix() {
         this.confusionMatrix.print();
     }
+
+    // auxiliary snapshot functions
+    private TrainingEvent snapshot(String type, String sessionId, int epoch, int sampleIndex) {
+        return new TrainingEvent(
+            type,
+            sessionId,
+            epoch,
+            sampleIndex,
+            this.erroRede,
+            this.snapshotInputLayer(),
+            this.snapshotHiddenLayers(),
+            this.snapshotOutputLayer()
+        );
+    }
+
+    private LayerSnapshot snapshotInputLayer() {
+        List<PerceptronSnapshot> perceptrons = new ArrayList<>();
+
+        for (int i = 0; i < this.entradas.size(); i++) {
+            EntradaMLP entrada = this.entradas.get(i);
+
+            perceptrons.add(
+                new PerceptronSnapshot(
+                    inputPerceptronId(i),
+                    null,
+                    entrada.getSaida(),
+                    null,
+                    null,
+                    List.of()
+                )
+            );
+
+        }
+
+        return new LayerSnapshot("input", 0, perceptrons);
+    }
+
+    private List<LayerSnapshot> snapshotHiddenLayers() {
+        List<LayerSnapshot> layers = new ArrayList<>();
+
+        for (int layerIndex = 0; layerIndex < camadasOcultas.size(); layerIndex++) {
+            List<Perceptron> camada = camadasOcultas.get(layerIndex);
+            List<PerceptronSnapshot> perceptrons = new ArrayList<>();
+
+            for (int perceptronIndex = 0; perceptronIndex < camada.size(); perceptronIndex++) {
+                perceptrons.add(snapshotHiddenPerceptron(layerIndex, perceptronIndex));
+            }
+
+            layers.add(new LayerSnapshot("hidden", layerIndex, perceptrons));
+        }
+
+        return layers;
+    }
+
+    private LayerSnapshot snapshotOutputLayer() {
+        List<PerceptronSnapshot> perceptrons = new ArrayList<>();
+
+        for (int perceptronIndex = 0; perceptronIndex < camadaSaida.size(); perceptronIndex++) {
+            perceptrons.add(snapshotOutputPerceptron(perceptronIndex));
+        }
+
+        return new LayerSnapshot("output", 0, perceptrons);
+    }
+
+    private PerceptronSnapshot snapshotHiddenPerceptron(int layerIndex, int perceptronIndex) {
+        Perceptron perceptron = camadasOcultas.get(layerIndex).get(perceptronIndex);
+
+        return new PerceptronSnapshot(
+                hiddenPerceptronId(layerIndex, perceptronIndex),
+                safeValue(perceptron.getNet()),
+                perceptron.getSaida(),
+                safeValue(perceptron.getErro()),
+                safeValue(perceptron.getGradienteErro()),
+                snapshotInputs(perceptron, layerIndex)
+        );
+    }
+
+    private PerceptronSnapshot snapshotOutputPerceptron(int perceptronIndex) {
+        Perceptron perceptron = camadaSaida.get(perceptronIndex);
+
+        return new PerceptronSnapshot(
+                outputPerceptronId(perceptronIndex),
+                safeValue(perceptron.getNet()),
+                perceptron.getSaida(),
+                safeValue(perceptron.getErro()),
+                safeValue(perceptron.getGradienteErro()),
+                snapshotInputs(perceptron, camadasOcultas.size())
+        );
+    }
+
+    private List<InputSnapshot> snapshotInputs(Perceptron perceptron, int destinationLayerIndex) {
+        List<InputSnapshot> inputs = new ArrayList<>();
+        List<EntradaPerceptron> entradasPerceptron = perceptron.getEntradas();
+
+        for (int inputIndex = 0; inputIndex < entradasPerceptron.size(); inputIndex++) {
+            EntradaPerceptron entrada = entradasPerceptron.get(inputIndex);
+
+            String fromPerceptronId = destinationLayerIndex == 0
+                    ? inputPerceptronId(inputIndex)
+                    : hiddenPerceptronId(destinationLayerIndex - 1, inputIndex);
+
+            inputs.add(new InputSnapshot(
+                    fromPerceptronId,
+                    entrada.getPeso(),
+                    entrada.getSaida()
+            ));
+        }
+
+        return inputs;
+    }
+
+    private String inputPerceptronId(int index) {
+        return "i-" + index;
+    }
+
+    private String hiddenPerceptronId(int layerIndex, int perceptronIndex) {
+        return "h-" + layerIndex + "-" + perceptronIndex;
+    }
+
+    private String outputPerceptronId(int index) {
+        return "o-" + index;
+    }
+
+    private Double safeValue(double value) {
+        return value == Double.MAX_VALUE ? null : value;
+    }
+
 }

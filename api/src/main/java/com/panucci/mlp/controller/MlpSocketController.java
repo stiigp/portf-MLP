@@ -21,7 +21,7 @@ public class MlpSocketController {
         );
     }
 
-    @MessageMapping("/mlp/{sessionId}/pause")
+    @MessageMapping("/mlp/{sessionId}/pause")                   
     public void pause(@DestinationVariable String sessionId) {
         System.out.println(
                 "pausing yet to be implemented, sessionId: " + sessionId
