@@ -14,7 +14,7 @@ public class MlpSocketController {
         this.trainingService = trainingService;
     }
 
-    @MessageMapping("/mlp/{sessionId}/start")
+    @MessageMapping("/mlp/{sessionId}/{database}start")
     public void start(@DestinationVariable String sessionId) {
         System.out.println(
                 "starting training on session " + sessionId
