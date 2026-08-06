@@ -29,14 +29,16 @@ public class MLP {
 
     protected int nCamadasOcultas, nPerceptronsPorCamadaOculta;
     protected TrainingListener listener;
+    protected String sessionId;
 
-    public MLP(int nCamadasOcultas, ActivationFunction activationFunction, double taxaDeAprendizado, TrainingListener listener) {
+    public MLP(int nCamadasOcultas, ActivationFunction activationFunction, double taxaDeAprendizado, TrainingListener listener, String sessionId) {
         this.nCamadasOcultas = nCamadasOcultas;
         this.activationFunction = activationFunction;
         this.camadasOcultas = new ArrayList<>();
         this.taxaDeAprendizado = taxaDeAprendizado;
         this.erroRede = Double.MAX_VALUE;
         this.listener = listener;
+        this.sessionId = sessionId;
     }
 
     public void train(Table trainTable, String nomeAtributoTarget, double erroParada, int maxEpochs) {
@@ -72,18 +74,18 @@ public class MLP {
         }
     }
 
-    public void train(List<List<Double>> entradasTreino, List<List<Integer>> saidasEsperadas, double erroParada, int maxEpochs) {
+    private void train(List<List<Double>> entradasTreino, List<List<Integer>> saidasEsperadas, double erroParada, int maxEpochs) {
         int contadorEpochs = 0;
         List<Double> ultimos10Erros = new ArrayList<>();
 
-        this.listener.onTrainingStartEvent(snapshot("TRAINING_START", null, contadorEpochs, 0));
+        this.listener.onTrainingStartEvent(snapshot("TRAINING_START", this.sessionId, contadorEpochs, 0));
         while (this.erroRede > erroParada && contadorEpochs < maxEpochs) {
             for (int i = 0; i < entradasTreino.size(); i ++) {
                 this.atualizaEntradasAndSaidasEsperadas(entradasTreino.get(i), saidasEsperadas.get(i));
-                this.listener.onForwardPassEvent(snapshot("FORWARD_PASS", null, contadorEpochs, i));
+                this.listener.onForwardPassEvent(snapshot("FORWARD_PASS", this.sessionId, contadorEpochs, i));
 
                 backPropagation();
-                this.listener.onWeightsUpdateEvent(snapshot("WEIGHTS_UPDATE", null, contadorEpochs, i));
+                this.listener.onWeightsUpdateEvent(snapshot("WEIGHTS_UPDATE", this.sessionId, contadorEpochs, i));
             }
 
             if (ultimos10Erros.size() < 10) {
@@ -103,7 +105,7 @@ public class MLP {
         if (contadorEpochs == maxEpochs)
             System.out.println("Treinamento parou pelo limite de épocas!");
 
-        this.listener.onTrainingEndEvent(snapshot("TRAINING_END", null, contadorEpochs, 0));
+        this.listener.onTrainingEndEvent(snapshot("TRAINING_END", this.sessionId, contadorEpochs, 0));
     }
 
     public double test(Table testTable, String nomeAtributoTarget) {

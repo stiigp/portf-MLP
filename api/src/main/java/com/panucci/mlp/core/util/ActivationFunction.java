@@ -1,4 +1,6 @@
 package com.panucci.mlp.core.util;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Function;
 
 public class ActivationFunction {
@@ -39,4 +41,17 @@ public class ActivationFunction {
             x -> x/10,
             y -> 0.1
     );
+
+    public static final HashMap<String, ActivationFunction> nameToActivationFunctionMap = new HashMap(Map.of(
+        "logistica", logistica,
+        "logistic", logistica,
+
+        "tangenteHiperbolica", tangenteHiperbolica,
+        "hiperbolicTan", tangenteHiperbolica,
+
+        "netSobreDois", netSobreDois,
+        "netOverTwo", netSobreDois,
+
+        "linear", linear
+    ));
 }
