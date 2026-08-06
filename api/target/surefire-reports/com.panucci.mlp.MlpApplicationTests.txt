@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.panucci.mlp.MlpApplicationTests
 -------------------------------------------------------------------------------
-Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.191 s -- in com.panucci.mlp.MlpApplicationTests
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.092 s -- in com.panucci.mlp.MlpApplicationTests

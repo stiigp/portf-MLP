@@ -6,14 +6,38 @@ import tech.tablesaw.io.csv.CsvReadOptions;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.io.IOException;
+import java.net.URL;
 
 public class Reader {
     private Table tabela, trainTable, testTable;
     private String nomeAtributoTarget;
+    public static final HashMap<String, String> tableNameToTargetClass = new HashMap<>(Map.of(
+        "mushrooms", "class",
+        "fruits", "fruit_name"
+    ));;
 
     public Reader(String nomeTabela, String nomeAtributoTarget) {
-        this.tabela = Table.read().usingOptions(CsvReadOptions.builder("src/data/" + nomeTabela + ".csv"));
+        String resourcePath = "data/" + nomeTabela + ".csv";
+
+        URL resource = Thread.currentThread()
+            .getContextClassLoader()
+            .getResource(resourcePath);
+
+        if (resource == null) {
+            throw new IllegalArgumentException("Dataset not found: " + resourcePath);
+        }
+
+        try {
+            this.tabela = Table.read().usingOptions(
+                CsvReadOptions.builder(resource)
+            );
+        } catch (IOException error) {
+            System.out.println("IOException: " + error.getMessage());
+        }
+        
         trainTable = null;
         testTable = null;
         this.nomeAtributoTarget = nomeAtributoTarget;

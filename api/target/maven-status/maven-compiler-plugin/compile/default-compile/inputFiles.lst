@@ -9,6 +9,13 @@ C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\core
 C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\core\util\ActivationFunction.java
 C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\core\util\ConfusionMatrix.java
 C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\core\util\MathUtil.java
+C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\dto\ConnectionSnapshot.java
+C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\dto\InputSnapshot.java
+C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\dto\LayerSnapshot.java
 C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\dto\MlpStatus.java
+C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\dto\PerceptronSnapshot.java
+C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\dto\StartTrainingPayload.java
+C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\dto\TrainingEvent.java
+C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\listeners\TrainingListener.java
 C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\MlpApplication.java
 C:\Users\Usuario\Desktop\CODING\portf-MLP\api\src\main\java\com\panucci\mlp\services\MlpTrainingService.java
