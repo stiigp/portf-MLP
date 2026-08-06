@@ -1,9 +1,10 @@
 package com.panucci.mlp.services;
 
-import org.springframework.stereotype.Service;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import java.util.concurrent.Executor;
 
-import tech.tablesaw.api.Table;
+import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import com.panucci.mlp.core.datastructures.MLP;
 import com.panucci.mlp.core.util.ActivationFunction;
@@ -16,12 +17,20 @@ import com.panucci.mlp.core.dataprocessing.Reader;
 public class MlpTrainingService {
 
     private final SimpMessagingTemplate messagingTemplate;
+    private final Executor trainingExecutor;
 
-    public MlpTrainingService(SimpMessagingTemplate messagingTemplate) {
+    public MlpTrainingService(SimpMessagingTemplate messagingTemplate, @Qualifier("trainingExecutor") Executor trainingExecutor) {
         this.messagingTemplate = messagingTemplate;
+        this.trainingExecutor = trainingExecutor;
     }
 
     public void startTraining(StartTrainingPayload payload) {
+        this.trainingExecutor.execute(() -> {
+            this.runTraining(payload);
+        });
+    }
+
+    private void runTraining(StartTrainingPayload payload) {
         ActivationFunction resolvedActivationFunction = this.resolveActivationFunction(payload.activationFunctionName());
         if (resolvedActivationFunction == null) {
             // raise error?
