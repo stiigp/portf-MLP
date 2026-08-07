@@ -9,3 +9,14 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: docker
     restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: portf-mlp-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+    restart: unless-stopped
