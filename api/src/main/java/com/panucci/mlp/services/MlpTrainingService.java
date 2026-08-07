@@ -4,7 +4,6 @@ import java.util.concurrent.Executor;
 
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import com.panucci.mlp.core.datastructures.MLP;
 import com.panucci.mlp.core.util.ActivationFunction;
@@ -13,18 +12,19 @@ import com.panucci.mlp.dto.TrainingEvent;
 import com.panucci.mlp.listeners.TrainingListener;
 import com.panucci.mlp.services.factories.MlpFactory;
 import com.panucci.mlp.services.factories.ReaderFactory;
+import com.panucci.mlp.services.publishing.TrainingEventPublisher;
 import com.panucci.mlp.core.dataprocessing.Reader;
 
 @Service
 public class MlpTrainingService {
 
-    private final SimpMessagingTemplate messagingTemplate;
+    private final TrainingEventPublisher eventPublisher;
     private final Executor trainingExecutor;
     private final ReaderFactory readerFactory;
     private final MlpFactory mlpFactory;
 
-    public MlpTrainingService(SimpMessagingTemplate messagingTemplate, @Qualifier("trainingExecutor") Executor trainingExecutor, @Qualifier("defaultReaderFactory") ReaderFactory readerFactory, @Qualifier("defaultMlpFactory") MlpFactory mlpFactory) {
-        this.messagingTemplate = messagingTemplate;
+    public MlpTrainingService(@Qualifier("webSocketTrainingEventPublisher") TrainingEventPublisher eventPublisher, @Qualifier("trainingExecutor") Executor trainingExecutor, @Qualifier("defaultReaderFactory") ReaderFactory readerFactory, @Qualifier("defaultMlpFactory") MlpFactory mlpFactory) {
+        this.eventPublisher = eventPublisher;
         this.trainingExecutor = trainingExecutor;
         this.readerFactory = readerFactory;
         this.mlpFactory = mlpFactory;
@@ -76,10 +76,7 @@ public class MlpTrainingService {
     }
 
     private void publish(TrainingEvent event) {
-        this.messagingTemplate.convertAndSend(
-                "/topic/mlp/" + event.sessionId() + "/status",
-                event
-        );
+        this.eventPublisher.publish(event);
     }
 
     private TrainingListener defaultTrainingListener() {
