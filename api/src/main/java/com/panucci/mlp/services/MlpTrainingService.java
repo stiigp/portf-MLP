@@ -11,6 +11,8 @@ import com.panucci.mlp.core.util.ActivationFunction;
 import com.panucci.mlp.dto.StartTrainingPayload;
 import com.panucci.mlp.dto.TrainingEvent;
 import com.panucci.mlp.listeners.TrainingListener;
+import com.panucci.mlp.services.factories.MlpFactory;
+import com.panucci.mlp.services.factories.ReaderFactory;
 import com.panucci.mlp.core.dataprocessing.Reader;
 
 @Service
@@ -18,10 +20,14 @@ public class MlpTrainingService {
 
     private final SimpMessagingTemplate messagingTemplate;
     private final Executor trainingExecutor;
+    private final ReaderFactory readerFactory;
+    private final MlpFactory mlpFactory;
 
-    public MlpTrainingService(SimpMessagingTemplate messagingTemplate, @Qualifier("trainingExecutor") Executor trainingExecutor) {
+    public MlpTrainingService(SimpMessagingTemplate messagingTemplate, @Qualifier("trainingExecutor") Executor trainingExecutor, @Qualifier("defaultReaderFactory") ReaderFactory readerFactory, @Qualifier("defaultMlpFactory") MlpFactory mlpFactory) {
         this.messagingTemplate = messagingTemplate;
         this.trainingExecutor = trainingExecutor;
+        this.readerFactory = readerFactory;
+        this.mlpFactory = mlpFactory;
     }
 
     public void startTraining(StartTrainingPayload payload) {
@@ -45,11 +51,11 @@ public class MlpTrainingService {
             return;
         }
 
-        Reader reader = new Reader(payload.databaseName(), targetClassName);
+        Reader reader = this.readerFactory.create(payload.databaseName(), targetClassName);
         reader.normaliza();
         reader.oneHotEncode();
 
-        MLP mlp = new MLP(
+        MLP mlp = this.mlpFactory.create(
             payload.hiddenLayersNumber(),
             resolvedActivationFunction,
             payload.learningRate(),
