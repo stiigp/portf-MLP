@@ -1,0 +1,185 @@
+package com.panucci.mlp.services;
+
+import com.panucci.mlp.core.dataprocessing.Reader;
+import com.panucci.mlp.core.datastructures.MLP;
+import com.panucci.mlp.core.util.ActivationFunction;
+import com.panucci.mlp.dto.StartTrainingPayload;
+import com.panucci.mlp.dto.TrainingEvent;
+import com.panucci.mlp.listeners.TrainingListener;
+import com.panucci.mlp.services.factories.MlpFactory;
+import com.panucci.mlp.services.factories.ReaderFactory;
+import com.panucci.mlp.services.publishing.TrainingEventPublisher;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
+import tech.tablesaw.api.Table;
+
+import java.util.concurrent.Executor;
+
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertSame;
+
+class MlpTrainingServiceTest {
+
+    private final Executor sameThreadExecutor = Runnable::run;
+
+    private TrainingEventPublisher eventPublisher;
+    private ReaderFactory readerFactory;
+    private MlpFactory mlpFactory;
+    private Reader reader;
+    private MLP mlp;
+    private Table trainTable;
+    private MlpTrainingService service;
+
+    @BeforeEach
+    void setUp() {
+        eventPublisher = mock(TrainingEventPublisher.class);
+        readerFactory = mock(ReaderFactory.class);
+        mlpFactory = mock(MlpFactory.class);
+        reader = mock(Reader.class);
+        mlp = mock(MLP.class);
+        trainTable = Table.create("train");
+
+        service = new MlpTrainingService(
+            eventPublisher,
+            sameThreadExecutor,
+            readerFactory,
+            mlpFactory
+        );
+    }
+
+    @Test
+    void startTrainingBuildsReaderAndMlpFromPayload() {
+        StartTrainingPayload payload = validPayload();
+
+        when(readerFactory.create("fruits", "fruit_name")).thenReturn(reader);
+        when(reader.getTrainTable()).thenReturn(trainTable);
+        when(mlpFactory.create(
+            eq(2),
+            eq(ActivationFunction.logistica),
+            eq(0.1),
+            any(TrainingListener.class),
+            eq("session-1")
+        )).thenReturn(mlp);
+
+        service.startTraining(payload);
+
+        verify(readerFactory).create("fruits", "fruit_name");
+        verify(mlpFactory).create(
+            eq(2),
+            eq(ActivationFunction.logistica),
+            eq(0.1),
+            any(TrainingListener.class),
+            eq("session-1")
+        );
+    }
+
+    @Test
+    void startTrainingPreparesReaderBeforeTrainingMlp() {
+        StartTrainingPayload payload = validPayload();
+
+        when(readerFactory.create("fruits", "fruit_name")).thenReturn(reader);
+        when(reader.getTrainTable()).thenReturn(trainTable);
+        when(mlpFactory.create(anyInt(), any(), anyDouble(), any(), anyString())).thenReturn(mlp);
+
+        service.startTraining(payload);
+
+        InOrder inOrder = inOrder(reader, mlp);
+        inOrder.verify(reader).normaliza();
+        inOrder.verify(reader).oneHotEncode();
+        inOrder.verify(reader).getTrainTable();
+        inOrder.verify(mlp).train(trainTable, "fruit_name", 0.01, 5);
+    }
+
+    @Test
+    void startTrainingDoesNothingWhenActivationFunctionIsInvalid() {
+        StartTrainingPayload payload = new StartTrainingPayload(
+            "session-1",
+            "fruits",
+            2,
+            "invalid",
+            0.1,
+            0.01,
+            5
+        );
+
+        service.startTraining(payload);
+
+        verifyNoInteractions(readerFactory, mlpFactory, eventPublisher);
+    }
+
+    @Test
+    void startTrainingDoesNothingWhenDatabaseNameIsInvalid() {
+        StartTrainingPayload payload = new StartTrainingPayload(
+            "session-1",
+            "invalid",
+            2,
+            "logistica",
+            0.1,
+            0.01,
+            5
+        );
+
+        service.startTraining(payload);
+
+        verifyNoInteractions(readerFactory, mlpFactory, eventPublisher);
+    }
+
+    @Test
+    void trainingListenerPublishesTrainingEvents() {
+        StartTrainingPayload payload = validPayload();
+        TrainingEvent event = new TrainingEvent(
+            "TRAINING_START",
+            "session-1",
+            0,
+            0,
+            0.0,
+            null,
+            null,
+            null
+        );
+        ArgumentCaptor<TrainingListener> listenerCaptor = ArgumentCaptor.forClass(TrainingListener.class);
+
+        when(readerFactory.create("fruits", "fruit_name")).thenReturn(reader);
+        when(reader.getTrainTable()).thenReturn(trainTable);
+        when(mlpFactory.create(anyInt(), any(), anyDouble(), listenerCaptor.capture(), anyString())).thenReturn(mlp);
+
+        service.startTraining(payload);
+
+        TrainingListener listener = listenerCaptor.getValue();
+        listener.onTrainingStartEvent(event);
+        listener.onForwardPassEvent(event);
+        listener.onWeightsUpdateEvent(event);
+        listener.onTrainingEndEvent(event);
+
+        verify(eventPublisher, times(4)).publish(event);
+    }
+
+    @Test
+    void trainingUsesSameTableReturnedByReader() {
+        StartTrainingPayload payload = validPayload();
+
+        when(readerFactory.create("fruits", "fruit_name")).thenReturn(reader);
+        when(reader.getTrainTable()).thenReturn(trainTable);
+        when(mlpFactory.create(anyInt(), any(), anyDouble(), any(), anyString())).thenReturn(mlp);
+
+        service.startTraining(payload);
+
+        ArgumentCaptor<Table> tableCaptor = ArgumentCaptor.forClass(Table.class);
+        verify(mlp).train(tableCaptor.capture(), eq("fruit_name"), eq(0.01), eq(5));
+        assertSame(trainTable, tableCaptor.getValue());
+    }
+
+    private StartTrainingPayload validPayload() {
+        return new StartTrainingPayload(
+            "session-1",
+            "fruits",
+            2,
+            "logistica",
+            0.1,
+            0.01,
+            5
+        );
+    }
+}
