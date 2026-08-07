@@ -1,0 +1,27 @@
+# Build output
+target/
+api/target/
+
+# Java artifacts
+*.class
+*.jar
+*.war
+*.ear
+
+# Maven wrapper/generated files
+.mvn/timing.properties
+
+# Logs
+*.log
+
+# IDE/editor files
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+
+# OS files
+.DS_Store
+Thumbs.db
