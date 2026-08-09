@@ -3,6 +3,7 @@ import type { StompSubscription } from '@stomp/stompjs'
 import './App.css'
 
 import { stompClient } from './services/mlpStompClient'
+import type { StartTrainingPayload } from './types/StartTrainingPayload'
 import type {
   ConnectionSnapshot,
   LayerTopology,
@@ -15,6 +16,14 @@ import type {
 const TRAINING_SESSION_ID = '1'
 
 type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error'
+
+interface TrainingFormState {
+  hiddenLayersNumber: number
+  activationFunctionName: string
+  learningRate: number
+  stopError: number
+  maxEpochs: number
+}
 
 interface TrainingSnapshot {
   lastEvent: TrainingEvent | null
@@ -30,6 +39,22 @@ const initialSnapshot: TrainingSnapshot = {
   topology: [],
   outputs: [],
   weights: [],
+}
+
+const defaultTrainingForm: TrainingFormState = {
+  hiddenLayersNumber: 1,
+  activationFunctionName: 'logistic',
+  learningRate: 0.0001,
+  stopError: 0.001,
+  maxEpochs: 200,
+}
+
+const defaultEventOptions: StartTrainingPayload['eventOptions'] = {
+  progressSampleInterval: 10,
+  outputSampleInterval: 100,
+  weightsSampleInterval: 50,
+  progressMinMillis: 100,
+  weightsMinMillis: 250,
 }
 
 function App() {
@@ -110,7 +135,9 @@ function App() {
     }
   }
 
-  async function handleStartMushroomsTraining(): Promise<void> {
+  async function handleStartMushroomsTraining(
+    trainingForm: TrainingFormState,
+  ): Promise<void> {
     try {
       await ensureConnected()
 
@@ -123,7 +150,12 @@ function App() {
 
       setSnapshot(initialSnapshot)
       setTraining(true)
-      stompClient.startMushroomsTraining(TRAINING_SESSION_ID)
+      stompClient.startTraining({
+        sessionId: TRAINING_SESSION_ID,
+        databaseName: 'mushrooms',
+        ...trainingForm,
+        eventOptions: defaultEventOptions,
+      })
     } catch (error) {
       setTraining(false)
       setConnectionState('error')
@@ -146,22 +178,95 @@ function App() {
           </p>
         </div>
 
-        <div className="actions">
-          <button
-            type="button"
-            onClick={handleConnect}
-            disabled={connectionState === 'connecting' || stompClient.connected}
-          >
-            {connectionState === 'connected' ? 'Connected' : 'Connect'}
-          </button>
-          <button
-            type="button"
-            onClick={handleStartMushroomsTraining}
-            disabled={training || connectionState === 'connecting'}
-          >
-            {training ? 'Training...' : 'Start mushrooms training'}
-          </button>
-        </div>
+        <form
+          className="training-form"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void handleStartMushroomsTraining(readTrainingForm(event.currentTarget))
+          }}
+        >
+          <label>
+            <span>Hidden layers</span>
+            <input
+              type="number"
+              min="1"
+              step="1"
+              name="hiddenLayersNumber"
+              defaultValue={defaultTrainingForm.hiddenLayersNumber}
+              disabled={training}
+              required
+            />
+          </label>
+
+          <label>
+            <span>Activation function</span>
+            <select
+              name="activationFunctionName"
+              defaultValue={defaultTrainingForm.activationFunctionName}
+              disabled={training}
+            >
+              <option value="logistic">Logistic</option>
+              <option value="linear">Linear</option>
+              <option value="hiperbolicTan">Hyperbolic tan</option>
+              <option value="netOverTwo">Net over two</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Learning rate</span>
+            <input
+              type="number"
+              min="0"
+              step="0.0001"
+              name="learningRate"
+              defaultValue={defaultTrainingForm.learningRate}
+              disabled={training}
+              required
+            />
+          </label>
+
+          <label>
+            <span>Stop error</span>
+            <input
+              type="number"
+              min="0"
+              step="0.0001"
+              name="stopError"
+              defaultValue={defaultTrainingForm.stopError}
+              disabled={training}
+              required
+            />
+          </label>
+
+          <label>
+            <span>Max epochs</span>
+            <input
+              type="number"
+              min="1"
+              step="1"
+              name="maxEpochs"
+              defaultValue={defaultTrainingForm.maxEpochs}
+              disabled={training}
+              required
+            />
+          </label>
+
+          <div className="actions">
+            <button
+              type="button"
+              onClick={handleConnect}
+              disabled={connectionState === 'connecting' || stompClient.connected}
+            >
+              {connectionState === 'connected' ? 'Connected' : 'Connect'}
+            </button>
+            <button
+              type="submit"
+              disabled={training || connectionState === 'connecting'}
+            >
+              {training ? 'Training...' : 'Start mushrooms training'}
+            </button>
+          </div>
+        </form>
 
         <section className="status-grid" aria-live="polite">
           <div>
@@ -247,6 +352,38 @@ function formatWeights(weights: ConnectionSnapshot[]): string {
   return remainingCount > 0
     ? `${visibleWeights} | +${remainingCount} more`
     : visibleWeights
+}
+
+function readTrainingForm(form: HTMLFormElement): TrainingFormState {
+  const formData = new FormData(form)
+
+  return {
+    hiddenLayersNumber: readNumber(formData, 'hiddenLayersNumber'),
+    activationFunctionName: readString(formData, 'activationFunctionName'),
+    learningRate: readNumber(formData, 'learningRate'),
+    stopError: readNumber(formData, 'stopError'),
+    maxEpochs: readNumber(formData, 'maxEpochs'),
+  }
+}
+
+function readNumber(formData: FormData, fieldName: string): number {
+  const value = Number(formData.get(fieldName))
+
+  if (!Number.isFinite(value)) {
+    throw new Error(`Invalid numeric form value: ${fieldName}`)
+  }
+
+  return value
+}
+
+function readString(formData: FormData, fieldName: string): string {
+  const value = formData.get(fieldName)
+
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error(`Invalid form value: ${fieldName}`)
+  }
+
+  return value
 }
 
 export default App
