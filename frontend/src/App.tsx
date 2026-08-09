@@ -1,20 +1,53 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { StompSubscription } from '@stomp/stompjs'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
 import './App.css'
 
 import { stompClient } from './services/mlpStompClient'
-import type { TrainingEvent } from './types/TrainingEvent'
+import type {
+  ConnectionSnapshot,
+  LayerTopology,
+  OutputValueSnapshot,
+  TrainingEvent,
+  TrainingFinishedEvent,
+  TrainingProgressEvent,
+} from './types/TrainingEvent'
 
 const TRAINING_SESSION_ID = '1'
 
+type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error'
+
+interface TrainingSnapshot {
+  lastEvent: TrainingEvent | null
+  progress: TrainingProgressEvent | TrainingFinishedEvent | null
+  topology: LayerTopology[]
+  outputs: OutputValueSnapshot[]
+  weights: ConnectionSnapshot[]
+}
+
+const initialSnapshot: TrainingSnapshot = {
+  lastEvent: null,
+  progress: null,
+  topology: [],
+  outputs: [],
+  weights: [],
+}
+
 function App() {
-  const [mlpStatus, setMlpStatus] = useState<TrainingEvent | null>(null)
+  const [snapshot, setSnapshot] = useState<TrainingSnapshot>(initialSnapshot)
   const [training, setTraining] = useState<boolean>(false)
-  const [mlpClientConnected, setMlpClientConnected] = useState<boolean>(false)
+  const [connectionState, setConnectionState] =
+    useState<ConnectionState>('disconnected')
   const trainingSubscriptionRef = useRef<StompSubscription | null>(null)
+
+  const topologySummary = useMemo(() => {
+    if (snapshot.topology.length === 0) {
+      return 'Topology not received yet'
+    }
+
+    return snapshot.topology
+      .map((layer) => `${layer.type}[${layer.index}]: ${layer.perceptronIds.length}`)
+      .join(' | ')
+  }, [snapshot.topology])
 
   useEffect(() => {
     return () => {
@@ -24,16 +57,62 @@ function App() {
   }, [])
 
   function handleTrainingEvent(event: TrainingEvent): void {
-    setMlpStatus(event)
-    setTraining(true)
+    setSnapshot((current) => {
+      const next: TrainingSnapshot = {
+        ...current,
+        lastEvent: event,
+      }
+
+      switch (event.type) {
+        case 'TRAINING_STARTED':
+          next.topology = event.layers
+          next.progress = null
+          next.outputs = []
+          next.weights = []
+          break
+        case 'TRAINING_PROGRESS':
+          next.progress = event
+          break
+        case 'OUTPUT_VALUES':
+          next.outputs = event.outputs
+          break
+        case 'WEIGHTS_UPDATE':
+          next.weights = event.connections
+          break
+        case 'TRAINING_FINISHED':
+          next.progress = event
+          break
+      }
+
+      return next
+    })
+
+    setTraining(event.type !== 'TRAINING_FINISHED')
+  }
+
+  async function ensureConnected(): Promise<void> {
+    if (stompClient.connected) {
+      setConnectionState('connected')
+      return
+    }
+
+    setConnectionState('connecting')
+    await stompClient.connect()
+    setConnectionState('connected')
+  }
+
+  async function handleConnect(): Promise<void> {
+    try {
+      await ensureConnected()
+    } catch (error) {
+      setConnectionState('error')
+      console.error(error)
+    }
   }
 
   async function handleStartMushroomsTraining(): Promise<void> {
     try {
-      if (!stompClient.connected) {
-        await stompClient.connect()
-        setMlpClientConnected(true)
-      }
+      await ensureConnected()
 
       if (!trainingSubscriptionRef.current) {
         trainingSubscriptionRef.current = stompClient.subscribeToTrainingStatus(
@@ -42,137 +121,132 @@ function App() {
         )
       }
 
+      setSnapshot(initialSnapshot)
       setTraining(true)
       stompClient.startMushroomsTraining(TRAINING_SESSION_ID)
     } catch (error) {
       setTraining(false)
-      setMlpClientConnected(false)
+      setConnectionState('error')
       console.error(error)
     }
   }
 
+  const currentProgress = snapshot.progress
+  const lastEvent = snapshot.lastEvent
+
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
+    <main className="app-shell">
+      <section className="training-panel">
+        <div className="heading-group">
+          <p className="eyebrow">MLP websocket monitor</p>
+          <h1>Training status</h1>
           <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
+            Start a mushrooms training run and watch the backend event stream
+            update this page.
           </p>
         </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={async () => {
-            if (!stompClient.connected) {
-              try {
-                await stompClient.connect()
-                setMlpClientConnected(true)
-              } catch (error) {
-                setMlpClientConnected(false)
-                console.error(error)
-              }
-            }
-          }}
-        >
-          {mlpClientConnected ? 'Conectado' : 'Conectar'}
-        </button>
-      </section>
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Mushrooms test</h2>
-          <ul>
-            <li>
-              <button
-                type="button"
-                className="counter"
-                onClick={handleStartMushroomsTraining}
-                disabled={training}
-              >
-                {training ? 'Treinando...' : 'Começar'}
-              </button>
-              <p>
-                {mlpStatus
-                  ? `Reacting to training event: ${mlpStatus.type} | epoch ${mlpStatus.epoch} | sample ${mlpStatus.sampleIndex} | error ${mlpStatus.networkError}`
-                  : 'Reacting to training event: waiting for training to start'}
-              </p>
-            </li>
-          </ul>
+        <div className="actions">
+          <button
+            type="button"
+            onClick={handleConnect}
+            disabled={connectionState === 'connecting' || stompClient.connected}
+          >
+            {connectionState === 'connected' ? 'Connected' : 'Connect'}
+          </button>
+          <button
+            type="button"
+            onClick={handleStartMushroomsTraining}
+            disabled={training || connectionState === 'connecting'}
+          >
+            {training ? 'Training...' : 'Start mushrooms training'}
+          </button>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+        <section className="status-grid" aria-live="polite">
+          <div>
+            <span>Connection</span>
+            <strong>{connectionState}</strong>
+          </div>
+          <div>
+            <span>Training</span>
+            <strong>{training ? 'running' : 'idle'}</strong>
+          </div>
+          <div>
+            <span>Last event</span>
+            <strong>{lastEvent?.type ?? 'none'}</strong>
+          </div>
+          <div>
+            <span>Session</span>
+            <strong>{lastEvent?.sessionId ?? TRAINING_SESSION_ID}</strong>
+          </div>
+        </section>
+
+        <section className="reacting-text">
+          <h2>Reacting text</h2>
+          <p>
+            {currentProgress
+              ? `Reacting to ${lastEvent?.type ?? 'event'} | epoch ${currentProgress.epoch} | sample ${currentProgress.sampleIndex} | error ${formatNumber(currentProgress.networkError)}`
+              : lastEvent
+                ? `Reacting to ${lastEvent.type} | epoch ${lastEvent.epoch} | sample ${lastEvent.sampleIndex}`
+                : 'Waiting for backend events.'}
+          </p>
+        </section>
+
+        <section className="details">
+          <div>
+            <span>Topology</span>
+            <p>{topologySummary}</p>
+          </div>
+          <div>
+            <span>Output values</span>
+            <p>{formatOutputs(snapshot.outputs)}</p>
+          </div>
+          <div>
+            <span>Weight update</span>
+            <p>{formatWeights(snapshot.weights)}</p>
+          </div>
+        </section>
+      </section>
+    </main>
   )
+}
+
+function formatNumber(value: number): string {
+  return Number.isFinite(value) ? value.toPrecision(6) : String(value)
+}
+
+function formatOutputs(outputs: OutputValueSnapshot[]): string {
+  if (outputs.length === 0) {
+    return 'No output values received yet'
+  }
+
+  return outputs
+    .map(
+      (output) =>
+        `${output.id}: ${formatNumber(output.output)} expected ${output.expected}`,
+    )
+    .join(' | ')
+}
+
+function formatWeights(weights: ConnectionSnapshot[]): string {
+  if (weights.length === 0) {
+    return 'No weight update received yet'
+  }
+
+  const visibleWeights = weights
+    .slice(0, 8)
+    .map(
+      (connection) =>
+        `${connection.from} -> ${connection.to}: ${formatNumber(connection.weight)}`,
+    )
+    .join(' | ')
+
+  const remainingCount = weights.length - 8
+
+  return remainingCount > 0
+    ? `${visibleWeights} | +${remainingCount} more`
+    : visibleWeights
 }
 
 export default App

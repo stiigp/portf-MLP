@@ -2,8 +2,8 @@ package com.panucci.mlp.dto;
 
 import java.util.List;
 
-public record LayerSnapshot(
+public record LayerTopology(
     String type,
     int index,
-    List<PerceptronSnapshot> perceptrons
+    List<String> perceptronIds
 ) {}

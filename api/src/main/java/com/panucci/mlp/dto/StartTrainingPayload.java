@@ -7,7 +7,8 @@ public record StartTrainingPayload(
     String activationFunctionName,
     double learningRate,
     double stopError,
-    int maxEpochs
+    int maxEpochs,
+    TrainingEventOptions eventOptions
 ) {
     
 }

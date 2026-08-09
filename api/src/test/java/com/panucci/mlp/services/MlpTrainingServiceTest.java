@@ -4,7 +4,9 @@ import com.panucci.mlp.core.dataprocessing.Reader;
 import com.panucci.mlp.core.datastructures.MLP;
 import com.panucci.mlp.core.util.ActivationFunction;
 import com.panucci.mlp.dto.StartTrainingPayload;
-import com.panucci.mlp.dto.TrainingEvent;
+import com.panucci.mlp.dto.TrainingEventOptions;
+import com.panucci.mlp.dto.TrainingMessage;
+import com.panucci.mlp.dto.TrainingProgressEvent;
 import com.panucci.mlp.listeners.TrainingListener;
 import com.panucci.mlp.services.factories.MlpFactory;
 import com.panucci.mlp.services.factories.ReaderFactory;
@@ -60,7 +62,8 @@ class MlpTrainingServiceTest {
             eq(ActivationFunction.logistica),
             eq(0.1),
             any(TrainingListener.class),
-            eq("session-1")
+            eq("session-1"),
+            eq(TrainingEventOptions.defaults())
         )).thenReturn(mlp);
 
         service.startTraining(payload);
@@ -71,7 +74,8 @@ class MlpTrainingServiceTest {
             eq(ActivationFunction.logistica),
             eq(0.1),
             any(TrainingListener.class),
-            eq("session-1")
+            eq("session-1"),
+            eq(TrainingEventOptions.defaults())
         );
     }
 
@@ -81,7 +85,7 @@ class MlpTrainingServiceTest {
 
         when(readerFactory.create("fruits", "fruit_name")).thenReturn(reader);
         when(reader.getTrainTable()).thenReturn(trainTable);
-        when(mlpFactory.create(anyInt(), any(), anyDouble(), any(), anyString())).thenReturn(mlp);
+        when(mlpFactory.create(anyInt(), any(), anyDouble(), any(), anyString(), any())).thenReturn(mlp);
 
         service.startTraining(payload);
 
@@ -101,7 +105,8 @@ class MlpTrainingServiceTest {
             "invalid",
             0.1,
             0.01,
-            5
+            5,
+            null
         );
 
         service.startTraining(payload);
@@ -118,7 +123,8 @@ class MlpTrainingServiceTest {
             "logistica",
             0.1,
             0.01,
-            5
+            5,
+            null
         );
 
         service.startTraining(payload);
@@ -129,21 +135,18 @@ class MlpTrainingServiceTest {
     @Test
     void trainingListenerPublishesTrainingEvents() {
         StartTrainingPayload payload = validPayload();
-        TrainingEvent event = new TrainingEvent(
-            "TRAINING_START",
+        TrainingMessage event = new TrainingProgressEvent(
+            "TRAINING_PROGRESS",
             "session-1",
             0,
             0,
-            0.0,
-            null,
-            null,
-            null
+            0.0
         );
         ArgumentCaptor<TrainingListener> listenerCaptor = ArgumentCaptor.forClass(TrainingListener.class);
 
         when(readerFactory.create("fruits", "fruit_name")).thenReturn(reader);
         when(reader.getTrainTable()).thenReturn(trainTable);
-        when(mlpFactory.create(anyInt(), any(), anyDouble(), listenerCaptor.capture(), anyString())).thenReturn(mlp);
+        when(mlpFactory.create(anyInt(), any(), anyDouble(), listenerCaptor.capture(), anyString(), any())).thenReturn(mlp);
 
         service.startTraining(payload);
 
@@ -162,7 +165,7 @@ class MlpTrainingServiceTest {
 
         when(readerFactory.create("fruits", "fruit_name")).thenReturn(reader);
         when(reader.getTrainTable()).thenReturn(trainTable);
-        when(mlpFactory.create(anyInt(), any(), anyDouble(), any(), anyString())).thenReturn(mlp);
+        when(mlpFactory.create(anyInt(), any(), anyDouble(), any(), anyString(), any())).thenReturn(mlp);
 
         service.startTraining(payload);
 
@@ -179,7 +182,8 @@ class MlpTrainingServiceTest {
             "logistica",
             0.1,
             0.01,
-            5
+            5,
+            null
         );
     }
 }

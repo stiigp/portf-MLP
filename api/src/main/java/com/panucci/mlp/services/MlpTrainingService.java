@@ -8,7 +8,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import com.panucci.mlp.core.datastructures.MLP;
 import com.panucci.mlp.core.util.ActivationFunction;
 import com.panucci.mlp.dto.StartTrainingPayload;
-import com.panucci.mlp.dto.TrainingEvent;
+import com.panucci.mlp.dto.TrainingEventOptions;
+import com.panucci.mlp.dto.TrainingMessage;
 import com.panucci.mlp.listeners.TrainingListener;
 import com.panucci.mlp.services.factories.MlpFactory;
 import com.panucci.mlp.services.factories.ReaderFactory;
@@ -60,7 +61,8 @@ public class MlpTrainingService {
             resolvedActivationFunction,
             payload.learningRate(),
             listener,
-            payload.sessionId()
+            payload.sessionId(),
+            TrainingEventOptions.normalize(payload.eventOptions())
         );
 
         mlp.train(
@@ -75,29 +77,29 @@ public class MlpTrainingService {
         return ActivationFunction.nameToActivationFunctionMap.getOrDefault(activationFunctionName, null);
     }
 
-    private void publish(TrainingEvent event) {
+    private void publish(TrainingMessage event) {
         this.eventPublisher.publish(event);
     }
 
     private TrainingListener defaultTrainingListener() {
         return new TrainingListener() {
             @Override
-            public void onTrainingStartEvent(TrainingEvent event) {
+            public void onTrainingStartEvent(TrainingMessage event) {
                 publish(event);
             }
 
             @Override
-            public void onForwardPassEvent(TrainingEvent event) {
+            public void onForwardPassEvent(TrainingMessage event) {
                 publish(event);
             }
 
             @Override
-            public void onWeightsUpdateEvent(TrainingEvent event) {
+            public void onWeightsUpdateEvent(TrainingMessage event) {
                 publish(event);
             }
 
             @Override
-            public void onTrainingEndEvent(TrainingEvent event) {
+            public void onTrainingEndEvent(TrainingMessage event) {
                 publish(event);
             }
         };

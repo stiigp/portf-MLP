@@ -3,7 +3,7 @@ package com.panucci.mlp.services.publishing;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
-import com.panucci.mlp.dto.TrainingEvent;
+import com.panucci.mlp.dto.TrainingMessage;
 
 @Component("webSocketTrainingEventPublisher")
 public class WebSocketTrainingEventPublisher implements TrainingEventPublisher {
@@ -15,7 +15,7 @@ public class WebSocketTrainingEventPublisher implements TrainingEventPublisher {
     }
     
     @Override
-    public void publish(TrainingEvent event) {
+    public void publish(TrainingMessage event) {
         this.messagingTemplate.convertAndSend(
             "/topic/mlp/" + event.sessionId() + "/status",
             event

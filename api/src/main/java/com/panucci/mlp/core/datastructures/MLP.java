@@ -3,10 +3,15 @@ package com.panucci.mlp.core.datastructures;
 import com.panucci.mlp.core.util.ActivationFunction;
 import com.panucci.mlp.core.util.ConfusionMatrix;
 import com.panucci.mlp.core.util.MathUtil;
-import com.panucci.mlp.dto.InputSnapshot;
-import com.panucci.mlp.dto.LayerSnapshot;
-import com.panucci.mlp.dto.PerceptronSnapshot;
-import com.panucci.mlp.dto.TrainingEvent;
+import com.panucci.mlp.dto.ConnectionSnapshot;
+import com.panucci.mlp.dto.LayerTopology;
+import com.panucci.mlp.dto.OutputValueSnapshot;
+import com.panucci.mlp.dto.OutputValuesEvent;
+import com.panucci.mlp.dto.TrainingEventOptions;
+import com.panucci.mlp.dto.TrainingFinishedEvent;
+import com.panucci.mlp.dto.TrainingProgressEvent;
+import com.panucci.mlp.dto.TrainingStartedEvent;
+import com.panucci.mlp.dto.WeightsUpdateEvent;
 import com.panucci.mlp.listeners.TrainingListener;
 
 import tech.tablesaw.api.ColumnType;
@@ -30,8 +35,11 @@ public class MLP {
     protected int nCamadasOcultas, nPerceptronsPorCamadaOculta;
     protected TrainingListener listener;
     protected String sessionId;
+    protected TrainingEventOptions eventOptions;
+    private long lastProgressEventMillis;
+    private long lastWeightsEventMillis;
 
-    public MLP(int nCamadasOcultas, ActivationFunction activationFunction, double taxaDeAprendizado, TrainingListener listener, String sessionId) {
+    public MLP(int nCamadasOcultas, ActivationFunction activationFunction, double taxaDeAprendizado, TrainingListener listener, String sessionId, TrainingEventOptions eventOptions) {
         this.nCamadasOcultas = nCamadasOcultas;
         this.activationFunction = activationFunction;
         this.camadasOcultas = new ArrayList<>();
@@ -39,6 +47,7 @@ public class MLP {
         this.erroRede = Double.MAX_VALUE;
         this.listener = listener;
         this.sessionId = sessionId;
+        this.eventOptions = TrainingEventOptions.normalize(eventOptions);
     }
 
     public void train(Table trainTable, String nomeAtributoTarget, double erroParada, int maxEpochs) {
@@ -78,14 +87,15 @@ public class MLP {
         int contadorEpochs = 0;
         List<Double> ultimos10Erros = new ArrayList<>();
 
-        this.listener.onTrainingStartEvent(snapshot("TRAINING_START", this.sessionId, contadorEpochs, 0));
+        emitTrainingStarted(contadorEpochs, 0);
         while (this.erroRede > erroParada && contadorEpochs < maxEpochs) {
             for (int i = 0; i < entradasTreino.size(); i ++) {
                 this.atualizaEntradasAndSaidasEsperadas(entradasTreino.get(i), saidasEsperadas.get(i));
-                this.listener.onForwardPassEvent(snapshot("FORWARD_PASS", this.sessionId, contadorEpochs, i));
+                emitOutputValues(contadorEpochs, i);
 
                 backPropagation();
-                this.listener.onWeightsUpdateEvent(snapshot("WEIGHTS_UPDATE", this.sessionId, contadorEpochs, i));
+                emitTrainingProgress(contadorEpochs, i);
+                emitWeightsUpdate(contadorEpochs, i);
             }
 
             if (ultimos10Erros.size() < 10) {
@@ -105,7 +115,7 @@ public class MLP {
         if (contadorEpochs == maxEpochs)
             System.out.println("Treinamento parou pelo limite de épocas!");
 
-        this.listener.onTrainingEndEvent(snapshot("TRAINING_END", this.sessionId, contadorEpochs, 0));
+        emitTrainingFinished(contadorEpochs, 0);
     }
 
     public double test(Table testTable, String nomeAtributoTarget) {
@@ -472,113 +482,177 @@ public class MLP {
     }
 
     // auxiliary snapshot functions
-    private TrainingEvent snapshot(String type, String sessionId, int epoch, int sampleIndex) {
-        return new TrainingEvent(
-            type,
-            sessionId,
-            epoch,
-            sampleIndex,
-            this.erroRede,
-            this.snapshotInputLayer(),
-            this.snapshotHiddenLayers(),
-            this.snapshotOutputLayer()
+    private void emitTrainingStarted(int epoch, int sampleIndex) {
+        this.listener.onTrainingStartEvent(
+            new TrainingStartedEvent(
+                "TRAINING_STARTED",
+                this.sessionId,
+                epoch,
+                sampleIndex,
+                snapshotTopology()
+            )
         );
     }
 
-    private LayerSnapshot snapshotInputLayer() {
-        List<PerceptronSnapshot> perceptrons = new ArrayList<>();
-
-        for (int i = 0; i < this.entradas.size(); i++) {
-            EntradaMLP entrada = this.entradas.get(i);
-
-            perceptrons.add(
-                new PerceptronSnapshot(
-                    inputPerceptronId(i),
-                    null,
-                    entrada.getSaida(),
-                    null,
-                    null,
-                    List.of()
-                )
-            );
-
+    private void emitOutputValues(int epoch, int sampleIndex) {
+        if (!shouldEmitBySample(sampleIndex, this.eventOptions.outputSampleInterval())) {
+            return;
         }
 
-        return new LayerSnapshot("input", 0, perceptrons);
+        this.listener.onForwardPassEvent(
+            new OutputValuesEvent(
+                "OUTPUT_VALUES",
+                this.sessionId,
+                epoch,
+                sampleIndex,
+                snapshotOutputValues()
+            )
+        );
     }
 
-    private List<LayerSnapshot> snapshotHiddenLayers() {
-        List<LayerSnapshot> layers = new ArrayList<>();
+    private void emitTrainingProgress(int epoch, int sampleIndex) {
+        long now = System.currentTimeMillis();
+        if (
+            !shouldEmitBySample(sampleIndex, this.eventOptions.progressSampleInterval())
+                || !shouldEmitByTime(now, this.lastProgressEventMillis, this.eventOptions.progressMinMillis())
+        ) {
+            return;
+        }
 
-        for (int layerIndex = 0; layerIndex < camadasOcultas.size(); layerIndex++) {
-            List<Perceptron> camada = camadasOcultas.get(layerIndex);
-            List<PerceptronSnapshot> perceptrons = new ArrayList<>();
+        this.lastProgressEventMillis = now;
+        this.listener.onForwardPassEvent(
+            new TrainingProgressEvent(
+                "TRAINING_PROGRESS",
+                this.sessionId,
+                epoch,
+                sampleIndex,
+                this.erroRede
+            )
+        );
+    }
+
+    private void emitWeightsUpdate(int epoch, int sampleIndex) {
+        long now = System.currentTimeMillis();
+        if (
+            !shouldEmitBySample(sampleIndex, this.eventOptions.weightsSampleInterval())
+                || !shouldEmitByTime(now, this.lastWeightsEventMillis, this.eventOptions.weightsMinMillis())
+        ) {
+            return;
+        }
+
+        this.lastWeightsEventMillis = now;
+        this.listener.onWeightsUpdateEvent(
+            new WeightsUpdateEvent(
+                "WEIGHTS_UPDATE",
+                this.sessionId,
+                epoch,
+                sampleIndex,
+                snapshotWeights()
+            )
+        );
+    }
+
+    private void emitTrainingFinished(int epoch, int sampleIndex) {
+        this.listener.onTrainingEndEvent(
+            new TrainingFinishedEvent(
+                "TRAINING_FINISHED",
+                this.sessionId,
+                epoch,
+                sampleIndex,
+                this.erroRede
+            )
+        );
+    }
+
+    private boolean shouldEmitBySample(int sampleIndex, int interval) {
+        return sampleIndex % interval == 0;
+    }
+
+    private boolean shouldEmitByTime(long now, long lastEventMillis, long minMillis) {
+        return lastEventMillis == 0 || now - lastEventMillis >= minMillis;
+    }
+
+    private List<LayerTopology> snapshotTopology() {
+        List<LayerTopology> layers = new ArrayList<>();
+        
+        List<String> inputIds = new ArrayList<>();
+
+        for (int i = 0; i < this.entradas.size(); i++) {
+            inputIds.add(inputPerceptronId(i));
+        }
+        layers.add(new LayerTopology("input", 0, inputIds));
+
+        for (int layerIndex = 0; layerIndex < this.camadasOcultas.size(); layerIndex++) {
+            List<String> hiddenIds = new ArrayList<>();
+            List<Perceptron> camada = this.camadasOcultas.get(layerIndex);
 
             for (int perceptronIndex = 0; perceptronIndex < camada.size(); perceptronIndex++) {
-                perceptrons.add(snapshotHiddenPerceptron(layerIndex, perceptronIndex));
+                hiddenIds.add(hiddenPerceptronId(layerIndex, perceptronIndex));
             }
-
-            layers.add(new LayerSnapshot("hidden", layerIndex, perceptrons));
+            layers.add(new LayerTopology("hidden", layerIndex, hiddenIds));
         }
+
+        List<String> outputIds = new ArrayList<>();
+        for (int i = 0; i < this.camadaSaida.size(); i++) {
+            outputIds.add(outputPerceptronId(i));
+        }
+        layers.add(new LayerTopology("output", 0, outputIds));
 
         return layers;
     }
 
-    private LayerSnapshot snapshotOutputLayer() {
-        List<PerceptronSnapshot> perceptrons = new ArrayList<>();
+    private List<OutputValueSnapshot> snapshotOutputValues() {
+        List<OutputValueSnapshot> outputs = new ArrayList<>();
 
-        for (int perceptronIndex = 0; perceptronIndex < camadaSaida.size(); perceptronIndex++) {
-            perceptrons.add(snapshotOutputPerceptron(perceptronIndex));
+        for (int perceptronIndex = 0; perceptronIndex < this.camadaSaida.size(); perceptronIndex++) {
+            Perceptron perceptron = this.camadaSaida.get(perceptronIndex);
+            double output = perceptron.getSaida();
+
+            outputs.add(
+                new OutputValueSnapshot(
+                    outputPerceptronId(perceptronIndex),
+                    safeValue(perceptron.getNet()),
+                    output,
+                    this.saidasEsperadas.get(perceptronIndex)
+                )
+            );
         }
 
-        return new LayerSnapshot("output", 0, perceptrons);
+        return outputs;
     }
 
-    private PerceptronSnapshot snapshotHiddenPerceptron(int layerIndex, int perceptronIndex) {
-        Perceptron perceptron = camadasOcultas.get(layerIndex).get(perceptronIndex);
+    private List<ConnectionSnapshot> snapshotWeights() {
+        List<ConnectionSnapshot> connections = new ArrayList<>();
 
-        return new PerceptronSnapshot(
-                hiddenPerceptronId(layerIndex, perceptronIndex),
-                safeValue(perceptron.getNet()),
-                perceptron.getSaida(),
-                safeValue(perceptron.getErro()),
-                safeValue(perceptron.getGradienteErro()),
-                snapshotInputs(perceptron, layerIndex)
-        );
+        for (int layerIndex = 0; layerIndex < this.camadasOcultas.size(); layerIndex++) {
+            List<Perceptron> camada = this.camadasOcultas.get(layerIndex);
+
+            for (int perceptronIndex = 0; perceptronIndex < camada.size(); perceptronIndex++) {
+                Perceptron perceptron = camada.get(perceptronIndex);
+                String destinationId = hiddenPerceptronId(layerIndex, perceptronIndex);
+                addInputConnections(connections, perceptron, layerIndex, destinationId);
+            }
+        }
+
+        for (int perceptronIndex = 0; perceptronIndex < this.camadaSaida.size(); perceptronIndex++) {
+            Perceptron perceptron = this.camadaSaida.get(perceptronIndex);
+            addInputConnections(connections, perceptron, this.camadasOcultas.size(), outputPerceptronId(perceptronIndex));
+        }
+
+        return connections;
     }
 
-    private PerceptronSnapshot snapshotOutputPerceptron(int perceptronIndex) {
-        Perceptron perceptron = camadaSaida.get(perceptronIndex);
-
-        return new PerceptronSnapshot(
-                outputPerceptronId(perceptronIndex),
-                safeValue(perceptron.getNet()),
-                perceptron.getSaida(),
-                safeValue(perceptron.getErro()),
-                safeValue(perceptron.getGradienteErro()),
-                snapshotInputs(perceptron, camadasOcultas.size())
-        );
-    }
-
-    private List<InputSnapshot> snapshotInputs(Perceptron perceptron, int destinationLayerIndex) {
-        List<InputSnapshot> inputs = new ArrayList<>();
+    private void addInputConnections(List<ConnectionSnapshot> connections, Perceptron perceptron, int destinationLayerIndex, String destinationId) {
         List<EntradaPerceptron> entradasPerceptron = perceptron.getEntradas();
 
         for (int inputIndex = 0; inputIndex < entradasPerceptron.size(); inputIndex++) {
             EntradaPerceptron entrada = entradasPerceptron.get(inputIndex);
-
-            String fromPerceptronId = destinationLayerIndex == 0
+            String sourceId = destinationLayerIndex == 0
                     ? inputPerceptronId(inputIndex)
                     : hiddenPerceptronId(destinationLayerIndex - 1, inputIndex);
 
-            inputs.add(new InputSnapshot(
-                    fromPerceptronId,
-                    entrada.getPeso(),
-                    entrada.getSaida()
-            ));
+            connections.add(new ConnectionSnapshot(sourceId, destinationId, entrada.getPeso()));
         }
-
-        return inputs;
     }
 
     private String inputPerceptronId(int index) {

@@ -1,3 +1,11 @@
+export interface TrainingEventOptions {
+  progressSampleInterval?: number;
+  outputSampleInterval?: number;
+  weightsSampleInterval?: number;
+  progressMinMillis?: number;
+  weightsMinMillis?: number;
+}
+
 export interface StartTrainingPayload {
   sessionId: string;
   databaseName: string;
@@ -6,4 +14,5 @@ export interface StartTrainingPayload {
   learningRate: number;
   stopError: number;
   maxEpochs: number;
+  eventOptions?: TrainingEventOptions;
 }

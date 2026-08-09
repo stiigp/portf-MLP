@@ -3,29 +3,29 @@ import {
   type Frame,
   type IMessage,
   type StompSubscription,
-} from "@stomp/stompjs";
-import type { StartTrainingPayload } from "../types/StartTrainingPayload";
-import type { TrainingEvent } from "../types/TrainingEvent";
+} from '@stomp/stompjs'
+import type { StartTrainingPayload } from '../types/StartTrainingPayload'
+import type { TrainingEvent } from '../types/TrainingEvent'
 
-type TrainingEventHandler = (event: TrainingEvent) => void;
-type StompErrorHandler = (frame: Frame) => void;
-type WebSocketErrorHandler = (event: Event) => void;
+type TrainingEventHandler = (event: TrainingEvent) => void
+type StompErrorHandler = (frame: Frame) => void
+type WebSocketErrorHandler = (event: Event) => void
 
 interface MlpStompClientOptions {
-  brokerURL?: string;
-  reconnectDelay?: number;
-  heartbeatIncoming?: number;
-  heartbeatOutgoing?: number;
-  debug?: boolean;
+  brokerURL?: string
+  reconnectDelay?: number
+  heartbeatIncoming?: number
+  heartbeatOutgoing?: number
+  debug?: boolean
 }
 
-const DEFAULT_BROKER_URL = "ws://localhost:8080/ws";
+const DEFAULT_BROKER_URL = 'ws://localhost:8080/ws'
 
 export class MlpStompClient {
-  private readonly client: Client;
-  private connectPromise: Promise<void> | null = null;
-  private onStompErrorHandler?: StompErrorHandler;
-  private onWebSocketErrorHandler?: WebSocketErrorHandler;
+  private readonly client: Client
+  private connectPromise: Promise<void> | null = null
+  private onStompErrorHandler?: StompErrorHandler
+  private onWebSocketErrorHandler?: WebSocketErrorHandler
 
   constructor(options: MlpStompClientOptions = {}) {
     this.client = new Client({
@@ -35,122 +35,129 @@ export class MlpStompClient {
       heartbeatOutgoing: options.heartbeatOutgoing ?? 4000,
       debug: options.debug
         ? (message) => {
-            console.log("[STOMP]", message);
+            console.log('[STOMP]', message)
           }
         : undefined,
-    });
+    })
 
     this.client.onStompError = (frame) => {
-      console.error("Erro STOMP:", frame.headers["message"]);
-      console.error(frame.body);
-      this.onStompErrorHandler?.(frame);
-    };
+      console.error('Erro STOMP:', frame.headers['message'])
+      console.error(frame.body)
+      this.onStompErrorHandler?.(frame)
+    }
 
     this.client.onWebSocketError = (event) => {
-      console.error("Erro WebSocket:", event);
-      this.onWebSocketErrorHandler?.(event);
-    };
+      console.error('Erro WebSocket:', event)
+      this.onWebSocketErrorHandler?.(event)
+    }
   }
 
   get connected(): boolean {
-    return this.client.connected;
+    return this.client.connected
   }
 
   connect(): Promise<void> {
     if (this.client.connected) {
-      return Promise.resolve();
+      return Promise.resolve()
     }
 
     if (this.connectPromise) {
-      return this.connectPromise;
+      return this.connectPromise
     }
 
     this.connectPromise = new Promise((resolve, reject) => {
       this.client.onConnect = () => {
-        console.log("Conectado ao servidor STOMP");
-        this.connectPromise = null;
-        resolve();
-      };
+        console.log('Conectado ao servidor STOMP')
+        this.connectPromise = null
+        resolve()
+      }
 
       this.client.onWebSocketClose = (event) => {
         if (this.connectPromise) {
-          this.connectPromise = null;
-          reject(event);
+          this.connectPromise = null
+          reject(event)
         }
-      };
+      }
 
-      this.client.activate();
-    });
+      this.client.activate()
+    })
 
-    return this.connectPromise;
+    return this.connectPromise
   }
 
   async disconnect(): Promise<void> {
-    this.connectPromise = null;
-    await this.client.deactivate();
+    this.connectPromise = null
+    await this.client.deactivate()
   }
 
   subscribeToTrainingStatus(
     sessionId: string,
     onEvent: TrainingEventHandler,
   ): StompSubscription {
-    this.assertConnected();
+    this.assertConnected()
 
     return this.client.subscribe(
       `/topic/mlp/${sessionId}/status`,
       (message: IMessage) => {
-        const event = JSON.parse(message.body) as TrainingEvent;
-        onEvent(event);
+        const event = JSON.parse(message.body) as TrainingEvent
+        onEvent(event)
       },
-    );
+    )
   }
 
   startTraining(payload: StartTrainingPayload): void {
-    this.assertConnected();
+    this.assertConnected()
 
     this.client.publish({
-      destination: "/app/mlp/start",
+      destination: '/app/mlp/start',
       body: JSON.stringify(payload),
-    });
+    })
   }
 
   pauseTraining(sessionId: string): void {
-    this.assertConnected();
+    this.assertConnected()
 
     this.client.publish({
       destination: `/app/mlp/${sessionId}/pause`,
-    });
+    })
   }
 
-  startMushroomsTraining(sessionId = "1"): void {
+  startMushroomsTraining(sessionId = '1'): void {
     this.startTraining({
       sessionId,
-      databaseName: "mushrooms",
+      databaseName: 'mushrooms',
       hiddenLayersNumber: 1,
-      activationFunctionName: "linear",
-      learningRate: 0.001,
+      activationFunctionName: 'logistic',
+      learningRate: 0.0001,
       stopError: 0.001,
-      maxEpochs: 2000,
-    });
+      maxEpochs: 200,
+      eventOptions: {
+        progressSampleInterval: 10,
+        outputSampleInterval: 100,
+        weightsSampleInterval: 50,
+        progressMinMillis: 100,
+        weightsMinMillis: 250,
+      },
+    })
   }
 
   onStompError(handler: StompErrorHandler): void {
-    this.onStompErrorHandler = handler;
+    this.onStompErrorHandler = handler
   }
 
   onWebSocketError(handler: WebSocketErrorHandler): void {
-    this.onWebSocketErrorHandler = handler;
+    this.onWebSocketErrorHandler = handler
   }
 
   private assertConnected(): void {
     if (!this.client.connected) {
-      throw new Error("STOMP client is not connected. Call connect() first.");
+      throw new Error('STOMP client is not connected. Call connect() first.')
     }
   }
 }
 
 export const stompClient = new MlpStompClient({
   debug: true,
-});
+})
 
-export default stompClient;
+export default stompClient
