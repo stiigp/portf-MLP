@@ -1,11 +1,55 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { StompSubscription } from '@stomp/stompjs'
 import reactLogo from './assets/react.svg'
 import viteLogo from './assets/vite.svg'
 import heroImg from './assets/hero.png'
 import './App.css'
 
+import { stompClient } from './services/mlpStompClient'
+import type { TrainingEvent } from './types/TrainingEvent'
+
+const TRAINING_SESSION_ID = '1'
+
 function App() {
-  const [count, setCount] = useState(0)
+  const [mlpStatus, setMlpStatus] = useState<TrainingEvent | null>(null)
+  const [training, setTraining] = useState<boolean>(false)
+  const [mlpClientConnected, setMlpClientConnected] = useState<boolean>(false)
+  const trainingSubscriptionRef = useRef<StompSubscription | null>(null)
+
+  useEffect(() => {
+    return () => {
+      trainingSubscriptionRef.current?.unsubscribe()
+      void stompClient.disconnect()
+    }
+  }, [])
+
+  function handleTrainingEvent(event: TrainingEvent): void {
+    setMlpStatus(event)
+    setTraining(true)
+  }
+
+  async function handleStartMushroomsTraining(): Promise<void> {
+    try {
+      if (!stompClient.connected) {
+        await stompClient.connect()
+        setMlpClientConnected(true)
+      }
+
+      if (!trainingSubscriptionRef.current) {
+        trainingSubscriptionRef.current = stompClient.subscribeToTrainingStatus(
+          TRAINING_SESSION_ID,
+          handleTrainingEvent,
+        )
+      }
+
+      setTraining(true)
+      stompClient.startMushroomsTraining(TRAINING_SESSION_ID)
+    } catch (error) {
+      setTraining(false)
+      setMlpClientConnected(false)
+      console.error(error)
+    }
+  }
 
   return (
     <>
@@ -24,9 +68,19 @@ function App() {
         <button
           type="button"
           className="counter"
-          onClick={() => setCount((count) => count + 1)}
+          onClick={async () => {
+            if (!stompClient.connected) {
+              try {
+                await stompClient.connect()
+                setMlpClientConnected(true)
+              } catch (error) {
+                setMlpClientConnected(false)
+                console.error(error)
+              }
+            }
+          }}
         >
-          Count is {count}
+          {mlpClientConnected ? 'Conectado' : 'Conectar'}
         </button>
       </section>
 
@@ -37,20 +91,22 @@ function App() {
           <svg className="icon" role="presentation" aria-hidden="true">
             <use href="/icons.svg#documentation-icon"></use>
           </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
+          <h2>Mushrooms test</h2>
           <ul>
             <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
+              <button
+                type="button"
+                className="counter"
+                onClick={handleStartMushroomsTraining}
+                disabled={training}
+              >
+                {training ? 'Treinando...' : 'Começar'}
+              </button>
+              <p>
+                {mlpStatus
+                  ? `Reacting to training event: ${mlpStatus.type} | epoch ${mlpStatus.epoch} | sample ${mlpStatus.sampleIndex} | error ${mlpStatus.networkError}`
+                  : 'Reacting to training event: waiting for training to start'}
+              </p>
             </li>
           </ul>
         </div>

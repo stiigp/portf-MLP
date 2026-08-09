@@ -1,46 +1,156 @@
-import { Client, IMessage, StompSubscription } from "@stomp/stompjs";
-import type { TrainingEvent } from "../types/TrainingEvent";
+import {
+  Client,
+  type Frame,
+  type IMessage,
+  type StompSubscription,
+} from "@stomp/stompjs";
 import type { StartTrainingPayload } from "../types/StartTrainingPayload";
+import type { TrainingEvent } from "../types/TrainingEvent";
 
-const stompClient = new Client({
-  brokerURL: "ws://localhost:8080/ws",
+type TrainingEventHandler = (event: TrainingEvent) => void;
+type StompErrorHandler = (frame: Frame) => void;
+type WebSocketErrorHandler = (event: Event) => void;
 
-  reconnectDelay: 5000,
+interface MlpStompClientOptions {
+  brokerURL?: string;
+  reconnectDelay?: number;
+  heartbeatIncoming?: number;
+  heartbeatOutgoing?: number;
+  debug?: boolean;
+}
 
-  heartbeatIncoming: 4000,
-  heartbeatOutgoing: 4000,
+const DEFAULT_BROKER_URL = "ws://localhost:8080/ws";
 
-  debug: (message) => {
-    console.log("[STOMP]", message);
-  },
+export class MlpStompClient {
+  private readonly client: Client;
+  private connectPromise: Promise<void> | null = null;
+  private onStompErrorHandler?: StompErrorHandler;
+  private onWebSocketErrorHandler?: WebSocketErrorHandler;
+
+  constructor(options: MlpStompClientOptions = {}) {
+    this.client = new Client({
+      brokerURL: options.brokerURL ?? DEFAULT_BROKER_URL,
+      reconnectDelay: options.reconnectDelay ?? 5000,
+      heartbeatIncoming: options.heartbeatIncoming ?? 4000,
+      heartbeatOutgoing: options.heartbeatOutgoing ?? 4000,
+      debug: options.debug
+        ? (message) => {
+            console.log("[STOMP]", message);
+          }
+        : undefined,
+    });
+
+    this.client.onStompError = (frame) => {
+      console.error("Erro STOMP:", frame.headers["message"]);
+      console.error(frame.body);
+      this.onStompErrorHandler?.(frame);
+    };
+
+    this.client.onWebSocketError = (event) => {
+      console.error("Erro WebSocket:", event);
+      this.onWebSocketErrorHandler?.(event);
+    };
+  }
+
+  get connected(): boolean {
+    return this.client.connected;
+  }
+
+  connect(): Promise<void> {
+    if (this.client.connected) {
+      return Promise.resolve();
+    }
+
+    if (this.connectPromise) {
+      return this.connectPromise;
+    }
+
+    this.connectPromise = new Promise((resolve, reject) => {
+      this.client.onConnect = () => {
+        console.log("Conectado ao servidor STOMP");
+        this.connectPromise = null;
+        resolve();
+      };
+
+      this.client.onWebSocketClose = (event) => {
+        if (this.connectPromise) {
+          this.connectPromise = null;
+          reject(event);
+        }
+      };
+
+      this.client.activate();
+    });
+
+    return this.connectPromise;
+  }
+
+  async disconnect(): Promise<void> {
+    this.connectPromise = null;
+    await this.client.deactivate();
+  }
+
+  subscribeToTrainingStatus(
+    sessionId: string,
+    onEvent: TrainingEventHandler,
+  ): StompSubscription {
+    this.assertConnected();
+
+    return this.client.subscribe(
+      `/topic/mlp/${sessionId}/status`,
+      (message: IMessage) => {
+        const event = JSON.parse(message.body) as TrainingEvent;
+        onEvent(event);
+      },
+    );
+  }
+
+  startTraining(payload: StartTrainingPayload): void {
+    this.assertConnected();
+
+    this.client.publish({
+      destination: "/app/mlp/start",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  pauseTraining(sessionId: string): void {
+    this.assertConnected();
+
+    this.client.publish({
+      destination: `/app/mlp/${sessionId}/pause`,
+    });
+  }
+
+  startMushroomsTraining(sessionId = "1"): void {
+    this.startTraining({
+      sessionId,
+      databaseName: "mushrooms",
+      hiddenLayersNumber: 1,
+      activationFunctionName: "linear",
+      learningRate: 0.001,
+      stopError: 0.001,
+      maxEpochs: 2000,
+    });
+  }
+
+  onStompError(handler: StompErrorHandler): void {
+    this.onStompErrorHandler = handler;
+  }
+
+  onWebSocketError(handler: WebSocketErrorHandler): void {
+    this.onWebSocketErrorHandler = handler;
+  }
+
+  private assertConnected(): void {
+    if (!this.client.connected) {
+      throw new Error("STOMP client is not connected. Call connect() first.");
+    }
+  }
+}
+
+export const stompClient = new MlpStompClient({
+  debug: true,
 });
 
-stompClient.onConnect = () => {
-  console.log("Conectado ao servidor STOMP");
-  const sessionId: string = "1";
-    
-  stompClient.publish(
-      {
-          destination: "/app/mlp/start"
-      }
-  )
-
-  stompClient.subscribe(`/topic/mlp/${sessionId}`, (message: IMessage) => {
-    const payload: TrainingEvent = JSON.parse(message.body);
-
-    console.log(payload.type);
-    console.log(payload.epoch);
-    console.log(payload.networkError);
-  });
-};
-
-stompClient.onStompError = (frame) => {
-  console.error("Erro STOMP:", frame.headers["message"]);
-  console.error(frame.body);
-};
-
-stompClient.onWebSocketError = (error) => {
-  console.error("Erro WebSocket:", error);
-};
-
-stompClient.activate();
+export default stompClient;
