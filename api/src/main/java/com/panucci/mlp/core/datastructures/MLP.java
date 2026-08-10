@@ -89,7 +89,11 @@ public class MLP {
 
         emitTrainingStarted(contadorEpochs, 0);
         while (this.erroRede > erroParada && contadorEpochs < maxEpochs) {
+            assertTrainingNotInterrupted();
+
             for (int i = 0; i < entradasTreino.size(); i ++) {
+                assertTrainingNotInterrupted();
+
                 this.atualizaEntradasAndSaidasEsperadas(entradasTreino.get(i), saidasEsperadas.get(i));
                 emitOutputValues(contadorEpochs, i);
 
@@ -570,6 +574,12 @@ public class MLP {
 
     private boolean shouldEmitByTime(long now, long lastEventMillis, long minMillis) {
         return lastEventMillis == 0 || now - lastEventMillis >= minMillis;
+    }
+
+    private void assertTrainingNotInterrupted() {
+        if (Thread.currentThread().isInterrupted()) {
+            throw new IllegalStateException("Training was interrupted");
+        }
     }
 
     private List<LayerTopology> snapshotTopology() {

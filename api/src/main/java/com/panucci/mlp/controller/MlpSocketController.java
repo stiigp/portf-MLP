@@ -2,6 +2,7 @@ package com.panucci.mlp.controller;
 
 import com.panucci.mlp.dto.StartTrainingPayload;
 import com.panucci.mlp.services.MlpTrainingService;
+import com.panucci.mlp.services.sessions.TrainingSession;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -19,10 +20,10 @@ public class MlpSocketController {
     @MessageMapping("/mlp/start")
     public void start(@Payload StartTrainingPayload payload) {
 
-        this.trainingService.startTraining(payload);
+        TrainingSession session = this.trainingService.startTraining(payload);
 
         System.out.println(
-                "starting training on session " + payload.sessionId()
+                "starting training on session " + session.sessionId()
         );
     }
 

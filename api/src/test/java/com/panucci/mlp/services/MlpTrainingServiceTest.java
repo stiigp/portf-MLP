@@ -11,20 +11,35 @@ import com.panucci.mlp.listeners.TrainingListener;
 import com.panucci.mlp.services.factories.MlpFactory;
 import com.panucci.mlp.services.factories.ReaderFactory;
 import com.panucci.mlp.services.publishing.TrainingEventPublisher;
+import com.panucci.mlp.services.sessions.SessionIdGenerator;
+import com.panucci.mlp.services.sessions.TrainingSessionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
+import org.springframework.core.task.AsyncTaskExecutor;
 import tech.tablesaw.api.Table;
 
-import java.util.concurrent.Executor;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 class MlpTrainingServiceTest {
 
-    private final Executor sameThreadExecutor = Runnable::run;
+    private final AsyncTaskExecutor sameThreadExecutor = new AsyncTaskExecutor() {
+        @Override
+        public void execute(Runnable task) {
+            task.run();
+        }
+
+        @Override
+        public Future<?> submit(Runnable task) {
+            task.run();
+            return CompletableFuture.completedFuture(null);
+        }
+    };
 
     private TrainingEventPublisher eventPublisher;
     private ReaderFactory readerFactory;
@@ -47,7 +62,8 @@ class MlpTrainingServiceTest {
             eventPublisher,
             sameThreadExecutor,
             readerFactory,
-            mlpFactory
+            mlpFactory,
+            new TrainingSessionService(new StaticSessionIdGenerator(), eventPublisher, 600000, 600000)
         );
     }
 
@@ -111,7 +127,7 @@ class MlpTrainingServiceTest {
 
         service.startTraining(payload);
 
-        verifyNoInteractions(readerFactory, mlpFactory, eventPublisher);
+        verifyNoInteractions(readerFactory, mlpFactory);
     }
 
     @Test
@@ -129,7 +145,7 @@ class MlpTrainingServiceTest {
 
         service.startTraining(payload);
 
-        verifyNoInteractions(readerFactory, mlpFactory, eventPublisher);
+        verifyNoInteractions(readerFactory, mlpFactory);
     }
 
     @Test
@@ -156,6 +172,7 @@ class MlpTrainingServiceTest {
         listener.onWeightsUpdateEvent(event);
         listener.onTrainingEndEvent(event);
 
+        verify(eventPublisher, times(7)).publish(any());
         verify(eventPublisher, times(4)).publish(event);
     }
 
@@ -185,5 +202,12 @@ class MlpTrainingServiceTest {
             5,
             null
         );
+    }
+
+    private static class StaticSessionIdGenerator implements SessionIdGenerator {
+        @Override
+        public String generate() {
+            return "session-1";
+        }
     }
 }

@@ -3,7 +3,6 @@ package com.panucci.mlp.config;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Bean;
 
-import java.util.concurrent.Executor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 
@@ -11,7 +10,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 public class TrainingExecutorConfig {
 
     @Bean
-    public Executor trainingExecutor() {
+    public ThreadPoolTaskExecutor trainingExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setThreadNamePrefix("mlp-training-");
         executor.setCorePoolSize(1);
