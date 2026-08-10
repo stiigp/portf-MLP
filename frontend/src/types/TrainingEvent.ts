@@ -1,4 +1,5 @@
 export type TrainingEventType =
+  | 'SESSION_STATUS'
   | 'TRAINING_STARTED'
   | 'TRAINING_PROGRESS'
   | 'OUTPUT_VALUES'
@@ -8,6 +9,17 @@ export type TrainingEventType =
 export interface TrainingMessageBase {
   type: TrainingEventType
   sessionId: string
+}
+
+export type TrainingSessionStatus =
+  | 'CREATED'
+  | 'QUEUED'
+  | 'RUNNING'
+  | 'FINISHED'
+  | 'FAILED'
+  | 'REJECTED'
+
+export interface TrainingSampleEventBase extends TrainingMessageBase {
   epoch: number
   sampleIndex: number
 }
@@ -18,12 +30,18 @@ export interface LayerTopology {
   perceptronIds: string[]
 }
 
-export interface TrainingStartedEvent extends TrainingMessageBase {
+export interface TrainingSessionStatusEvent extends TrainingMessageBase {
+  type: 'SESSION_STATUS'
+  status: TrainingSessionStatus
+  failureReason: string | null
+}
+
+export interface TrainingStartedEvent extends TrainingSampleEventBase {
   type: 'TRAINING_STARTED'
   layers: LayerTopology[]
 }
 
-export interface TrainingProgressEvent extends TrainingMessageBase {
+export interface TrainingProgressEvent extends TrainingSampleEventBase {
   type: 'TRAINING_PROGRESS'
   networkError: number
 }
@@ -35,7 +53,7 @@ export interface OutputValueSnapshot {
   expected: number
 }
 
-export interface OutputValuesEvent extends TrainingMessageBase {
+export interface OutputValuesEvent extends TrainingSampleEventBase {
   type: 'OUTPUT_VALUES'
   outputs: OutputValueSnapshot[]
 }
@@ -46,17 +64,18 @@ export interface ConnectionSnapshot {
   weight: number
 }
 
-export interface WeightsUpdateEvent extends TrainingMessageBase {
+export interface WeightsUpdateEvent extends TrainingSampleEventBase {
   type: 'WEIGHTS_UPDATE'
   connections: ConnectionSnapshot[]
 }
 
-export interface TrainingFinishedEvent extends TrainingMessageBase {
+export interface TrainingFinishedEvent extends TrainingSampleEventBase {
   type: 'TRAINING_FINISHED'
   networkError: number
 }
 
 export type TrainingEvent =
+  | TrainingSessionStatusEvent
   | TrainingStartedEvent
   | TrainingProgressEvent
   | OutputValuesEvent

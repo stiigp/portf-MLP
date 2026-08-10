@@ -6,6 +6,7 @@ import {
   TrainingForm,
   type TrainingFormState,
 } from './components/TrainingForm'
+import { createTrainingSession } from './services/mlpSessionApi'
 import { stompClient } from './services/mlpStompClient'
 import type { StartTrainingPayload } from './types/StartTrainingPayload'
 import type {
@@ -16,8 +17,6 @@ import type {
   TrainingFinishedEvent,
   TrainingProgressEvent,
 } from './types/TrainingEvent'
-
-const TRAINING_SESSION_ID = '1'
 
 type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error'
 
@@ -50,6 +49,7 @@ function App() {
   const [training, setTraining] = useState<boolean>(false)
   const [connectionState, setConnectionState] =
     useState<ConnectionState>('disconnected')
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
   const trainingSubscriptionRef = useRef<StompSubscription | null>(null)
 
   const topologySummary = useMemo(() => {
@@ -92,6 +92,8 @@ function App() {
         case 'WEIGHTS_UPDATE':
           next.weights = event.connections
           break
+        case 'SESSION_STATUS':
+          break
         case 'TRAINING_FINISHED':
           next.progress = event
           break
@@ -99,6 +101,11 @@ function App() {
 
       return next
     })
+
+    if (event.type === 'SESSION_STATUS') {
+      setTraining(event.status === 'QUEUED' || event.status === 'RUNNING')
+      return
+    }
 
     setTraining(event.type !== 'TRAINING_FINISHED')
   }
@@ -128,18 +135,19 @@ function App() {
   ): Promise<void> {
     try {
       await ensureConnected()
+      const session = await createTrainingSession()
 
-      if (!trainingSubscriptionRef.current) {
-        trainingSubscriptionRef.current = stompClient.subscribeToTrainingStatus(
-          TRAINING_SESSION_ID,
-          handleTrainingEvent,
-        )
-      }
+      trainingSubscriptionRef.current?.unsubscribe()
+      trainingSubscriptionRef.current = stompClient.subscribeToTrainingStatus(
+        session.sessionId,
+        handleTrainingEvent,
+      )
 
       setSnapshot(initialSnapshot)
+      setCurrentSessionId(session.sessionId)
       setTraining(true)
       stompClient.startTraining({
-        sessionId: TRAINING_SESSION_ID,
+        sessionId: session.sessionId,
         databaseName: 'mushrooms',
         ...trainingForm,
         eventOptions: defaultEventOptions,
@@ -191,7 +199,7 @@ function App() {
           </div>
           <div>
             <span>Session</span>
-            <strong>{lastEvent?.sessionId ?? TRAINING_SESSION_ID}</strong>
+            <strong>{lastEvent?.sessionId ?? currentSessionId ?? 'none'}</strong>
           </div>
         </section>
 
@@ -200,7 +208,7 @@ function App() {
           <p>
             {currentProgress
               ? `Reacting to ${lastEvent?.type ?? 'event'} | epoch ${currentProgress.epoch} | sample ${currentProgress.sampleIndex} | error ${formatNumber(currentProgress.networkError)}`
-              : lastEvent
+              : isSampleEvent(lastEvent)
                 ? `Reacting to ${lastEvent.type} | epoch ${lastEvent.epoch} | sample ${lastEvent.sampleIndex}`
                 : 'Waiting for backend events.'}
           </p>
@@ -223,6 +231,12 @@ function App() {
       </section>
     </main>
   )
+}
+
+function isSampleEvent(
+  event: TrainingEvent | null,
+): event is Exclude<TrainingEvent, { type: 'SESSION_STATUS' }> {
+  return event !== null && event.type !== 'SESSION_STATUS'
 }
 
 function formatNumber(value: number): string {
