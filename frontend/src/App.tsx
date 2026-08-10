@@ -121,21 +121,12 @@ function App() {
     setConnectionState('connected')
   }
 
-  async function handleConnect(): Promise<void> {
-    try {
-      await ensureConnected()
-    } catch (error) {
-      setConnectionState('error')
-      console.error(error)
-    }
-  }
-
   async function handleStartMushroomsTraining(
     trainingForm: TrainingFormState,
   ): Promise<void> {
     try {
-      await ensureConnected()
       const session = await createTrainingSession()
+      await ensureConnected()
 
       trainingSubscriptionRef.current?.unsubscribe()
       trainingSubscriptionRef.current = stompClient.subscribeToTrainingStatus(
@@ -176,9 +167,7 @@ function App() {
 
         <TrainingForm
           connectionBusy={connectionState === 'connecting'}
-          connected={stompClient.connected}
           training={training}
-          onConnect={handleConnect}
           onStartTraining={(trainingForm) => {
             void handleStartMushroomsTraining(trainingForm)
           }}

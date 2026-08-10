@@ -8,9 +8,7 @@ export interface TrainingFormState {
 
 interface TrainingFormProps {
   connectionBusy: boolean
-  connected: boolean
   training: boolean
-  onConnect: () => void
   onStartTraining: (trainingForm: TrainingFormState) => void
 }
 
@@ -24,9 +22,7 @@ const defaultTrainingForm: TrainingFormState = {
 
 export function TrainingForm({
   connectionBusy,
-  connected,
   training,
-  onConnect,
   onStartTraining,
 }: TrainingFormProps) {
   return (
@@ -104,13 +100,6 @@ export function TrainingForm({
       </label>
 
       <div className="actions">
-        <button
-          type="button"
-          onClick={onConnect}
-          disabled={connectionBusy || connected}
-        >
-          {connected ? 'Connected' : 'Connect'}
-        </button>
         <button type="submit" disabled={training || connectionBusy}>
           {training ? 'Training...' : 'Start mushrooms training'}
         </button>
