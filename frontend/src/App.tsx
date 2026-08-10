@@ -6,6 +6,7 @@ import {
   TrainingForm,
   type TrainingFormState,
 } from './components/TrainingForm'
+import { StaticMlpVisualization } from './components/StaticMlpVisualization'
 import { createTrainingSession } from './services/mlpSessionApi'
 import { stompClient } from './services/mlpStompClient'
 import type { StartTrainingPayload } from './types/StartTrainingPayload'
@@ -202,6 +203,8 @@ function App() {
                 : 'Waiting for backend events.'}
           </p>
         </section>
+
+        <StaticMlpVisualization />
 
         <section className="details">
           <div>
