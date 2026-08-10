@@ -2,6 +2,7 @@ package com.panucci.mlp.services.sessions;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
@@ -22,36 +23,42 @@ public class TrainingSessionService {
     private final ConcurrentHashMap<String, Future<?>> tasks = new ConcurrentHashMap<>();
     private final SessionIdGenerator sessionIdGenerator;
     private final TrainingEventPublisher eventPublisher;
+    private final Duration createdSessionTtl;
     private final Duration maxRunningDuration;
     private final Duration terminalSessionTtl;
+    private final int maxSessions;
 
     public TrainingSessionService(
         SessionIdGenerator sessionIdGenerator,
         TrainingEventPublisher eventPublisher,
+        @Value("${mlp.training.created-session-ttl-ms:120000}") long createdSessionTtlMillis,
         @Value("${mlp.training.max-running-duration-ms:600000}") long maxRunningDurationMillis,
-        @Value("${mlp.training.terminal-session-ttl-ms:600000}") long terminalSessionTtlMillis
+        @Value("${mlp.training.terminal-session-ttl-ms:600000}") long terminalSessionTtlMillis,
+        @Value("${mlp.training.max-sessions:50}") int maxSessions
     ) {
         this.sessionIdGenerator = sessionIdGenerator;
         this.eventPublisher = eventPublisher;
+        this.createdSessionTtl = Duration.ofMillis(createdSessionTtlMillis);
         this.maxRunningDuration = Duration.ofMillis(maxRunningDurationMillis);
         this.terminalSessionTtl = Duration.ofMillis(terminalSessionTtlMillis);
+        this.maxSessions = maxSessions;
     }
 
-    public TrainingSession createQueuedSession() {
-        return this.createQueuedSession(null);
-    }
+    public TrainingSession createSession() {
+        if (this.sessions.size() >= this.maxSessions) {
+            throw new IllegalStateException("Training session capacity is full");
+        }
 
-    public TrainingSession createQueuedSession(String requestedSessionId) {
         while (true) {
             Instant now = Instant.now();
-            String sessionId = this.resolveSessionId(requestedSessionId);
+            String sessionId = this.sessionIdGenerator.generate();
             TrainingSession session = new TrainingSession(
                 sessionId,
-                TrainingSessionStatus.QUEUED,
+                TrainingSessionStatus.CREATED,
                 now,
                 null,
                 now,
-                null,
+                now.plus(this.createdSessionTtl),
                 null
             );
 
@@ -59,8 +66,6 @@ public class TrainingSessionService {
                 this.publishStatus(session);
                 return session;
             }
-
-            requestedSessionId = null;
         }
     }
 
@@ -73,6 +78,32 @@ public class TrainingSessionService {
         if (session != null && !this.isTerminal(session) && !task.isDone()) {
             this.tasks.put(sessionId, task);
         }
+    }
+
+    public TrainingSession markQueued(String sessionId) {
+        Instant now = Instant.now();
+        TrainingSession updated = this.sessions.compute(sessionId, (id, session) -> {
+            if (session == null) {
+                throw new NoSuchElementException("Training session does not exist");
+            }
+
+            if (session.status() != TrainingSessionStatus.CREATED) {
+                throw new IllegalStateException("Training session is not ready to start");
+            }
+
+            return new TrainingSession(
+                session.sessionId(),
+                TrainingSessionStatus.QUEUED,
+                session.createdAt(),
+                null,
+                now,
+                null,
+                null
+            );
+        });
+
+        this.publishStatus(updated);
+        return updated;
     }
 
     public void markRunning(String sessionId) {
@@ -166,7 +197,8 @@ public class TrainingSessionService {
     }
 
     private boolean isTerminal(TrainingSession session) {
-        return session.status() == TrainingSessionStatus.FINISHED
+        return session.status() == TrainingSessionStatus.CREATED
+            || session.status() == TrainingSessionStatus.FINISHED
             || session.status() == TrainingSessionStatus.FAILED
             || session.status() == TrainingSessionStatus.REJECTED;
     }
@@ -191,14 +223,6 @@ public class TrainingSessionService {
                 )
             );
         }
-    }
-
-    private String resolveSessionId(String requestedSessionId) {
-        if (requestedSessionId == null || requestedSessionId.isBlank()) {
-            return this.sessionIdGenerator.generate();
-        }
-
-        return requestedSessionId;
     }
 
     private void publishStatus(TrainingSession session) {

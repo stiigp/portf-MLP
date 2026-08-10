@@ -42,7 +42,7 @@ public class MlpTrainingService {
     }
 
     public TrainingSession startTraining(StartTrainingPayload payload) {
-        TrainingSession session = this.trainingSessionService.createQueuedSession(payload.sessionId());
+        TrainingSession session = this.trainingSessionService.markQueued(payload.sessionId());
         StartTrainingPayload sessionPayload = payload.withSessionId(session.sessionId());
 
         try {
@@ -69,16 +69,14 @@ public class MlpTrainingService {
     private void runTraining(StartTrainingPayload payload) {
         ActivationFunction resolvedActivationFunction = this.resolveActivationFunction(payload.activationFunctionName());
         if (resolvedActivationFunction == null) {
-            // raise error?
-            return;
+            throw new IllegalArgumentException("Invalid activation function: " + payload.activationFunctionName());
         }
 
         TrainingListener listener = this.defaultTrainingListener();
 
         String targetClassName = Reader.tableNameToTargetClass.getOrDefault(payload.databaseName(), null);
         if (targetClassName == null) {
-            // raise error?
-            return;
+            throw new IllegalArgumentException("Invalid database name: " + payload.databaseName());
         }
 
         Reader reader = this.readerFactory.create(payload.databaseName(), targetClassName);

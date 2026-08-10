@@ -48,6 +48,7 @@ class MlpTrainingServiceTest {
     private MLP mlp;
     private Table trainTable;
     private MlpTrainingService service;
+    private TrainingSessionService trainingSessionService;
 
     @BeforeEach
     void setUp() {
@@ -58,12 +59,22 @@ class MlpTrainingServiceTest {
         mlp = mock(MLP.class);
         trainTable = Table.create("train");
 
+        trainingSessionService = new TrainingSessionService(
+            new StaticSessionIdGenerator(),
+            eventPublisher,
+            120000,
+            600000,
+            600000,
+            50
+        );
+        trainingSessionService.createSession();
+
         service = new MlpTrainingService(
             eventPublisher,
             sameThreadExecutor,
             readerFactory,
             mlpFactory,
-            new TrainingSessionService(new StaticSessionIdGenerator(), eventPublisher, 600000, 600000)
+            trainingSessionService
         );
     }
 
@@ -172,7 +183,7 @@ class MlpTrainingServiceTest {
         listener.onWeightsUpdateEvent(event);
         listener.onTrainingEndEvent(event);
 
-        verify(eventPublisher, times(7)).publish(any());
+        verify(eventPublisher, times(8)).publish(any());
         verify(eventPublisher, times(4)).publish(event);
     }
 
