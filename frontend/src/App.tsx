@@ -173,6 +173,14 @@ function App() {
           }}
         />
 
+        <MlpVisualization
+          topology={snapshot.topology}
+          connections={snapshot.weights}
+          outputs={snapshot.outputs}
+          progress={snapshot.progress}
+          eventType={lastEvent?.type ?? null}
+        />
+
         <section className="status-grid" aria-live="polite">
           <div>
             <span>Connection</span>
@@ -183,46 +191,19 @@ function App() {
             <strong>{training ? 'running' : 'idle'}</strong>
           </div>
           <div>
-            <span>Last event</span>
-            <strong>{lastEvent?.type ?? 'none'}</strong>
+            <span>Epoch</span>
+            <strong>{currentProgress?.epoch ?? 'N/A'}</strong>
           </div>
           <div>
-            <span>Session</span>
-            <strong>{lastEvent?.sessionId ?? currentSessionId ?? 'none'}</strong>
+            <span>Error</span>
+            <strong>{currentProgress ? formatNumber(currentProgress.networkError) : 'N/A'}</strong>
           </div>
         </section>
-
-        <section className="reacting-text">
-          <h2>Reacting text</h2>
-          <p>
-            {currentProgress
-              ? `Reacting to ${lastEvent?.type ?? 'event'} | epoch ${currentProgress.epoch} | sample ${currentProgress.sampleIndex} | error ${formatNumber(currentProgress.networkError)}`
-              : isSampleEvent(lastEvent)
-                ? `Reacting to ${lastEvent.type} | epoch ${lastEvent.epoch} | sample ${lastEvent.sampleIndex}`
-                : 'Waiting for backend events.'}
-          </p>
-        </section>
-
-        <MlpVisualization
-          topology={snapshot.topology}
-          connections={snapshot.weights}
-          outputs={snapshot.outputs}
-          progress={snapshot.progress}
-          eventType={lastEvent?.type ?? null}
-        />
 
         <section className="details">
           <div>
             <span>Topology</span>
             <p>{topologySummary}</p>
-          </div>
-          <div>
-            <span>Output values</span>
-            <p>{formatOutputs(snapshot.outputs)}</p>
-          </div>
-          <div>
-            <span>Weight update</span>
-            <p>{formatWeights(snapshot.weights)}</p>
           </div>
         </section>
       </section>
