@@ -1,11 +1,11 @@
 import type { LayerTopology, OutputValueSnapshot } from '../types/TrainingEvent'
 import { createSvgElement, formatNumber } from './mlpSvgDom'
-import type { Point } from './mlpSvgTypes'
+import type { NeuronLayout } from './mlpSvgTypes'
 
 type NeuronUpdate = {
   id: string
   kind: LayerTopology['type']
-  position: Point
+  position: NeuronLayout
   selected: boolean
   output?: OutputValueSnapshot
   onSelect?: (id: string) => void
@@ -28,7 +28,7 @@ export class NeuronSvgView {
 
   update(update: NeuronUpdate): void {
     const { id, kind, position, output } = update
-    const radius = kind === 'output' ? 30 : 20
+    const radius = position.radius
     const outputError = output ? Math.abs(output.output - output.expected) : 0
 
     this.group.dataset.kind = kind
@@ -41,12 +41,12 @@ export class NeuronSvgView {
     this.halo.setAttribute('r', String(radius + 7))
     this.circle.setAttribute('r', String(radius))
 
-    this.idLabel.setAttribute('y', output ? '-4' : '5')
-    this.idLabel.textContent = id
+    this.idLabel.setAttribute('y', '5')
+    this.idLabel.textContent = kind === 'output' ? '' : id
 
-    this.valueLabel.setAttribute('y', '13')
+    this.valueLabel.setAttribute('y', '4')
     this.valueLabel.textContent = output
-      ? `${formatNumber(output.output)} / ${formatNumber(output.expected)}`
+      ? `${formatNumber(output.output)}`
       : ''
   }
 

@@ -16,18 +16,23 @@ export type Point = {
   y: number
 }
 
+export type NeuronLayout = Point & {
+  radius: number
+}
+
 export type LayerLayout = {
   layer: LayerTopology
   x: number
   y: number
   height: number
+  neuronRadius: number
 }
 
 export type MlpLayoutState = {
   width: number
   height: number
   layers: LayerLayout[]
-  neurons: Map<string, Point>
+  neurons: Map<string, NeuronLayout>
 }
 
 export type MlpSvgSnapshot = {

@@ -1,12 +1,12 @@
 import type { ConnectionSnapshot } from '../types/TrainingEvent'
 import { clamp, connectionKey, createSvgElement } from './mlpSvgDom'
-import type { Point } from './mlpSvgTypes'
+import type { NeuronLayout } from './mlpSvgTypes'
 import { WeightLabelSvgView } from './WeightLabelSvgView'
 
 type ConnectionUpdate = {
   connection: ConnectionSnapshot
-  from: Point
-  to: Point
+  from: NeuronLayout
+  to: NeuronLayout
   highlighted: boolean
   labelsVisible: boolean
 }
@@ -16,10 +16,11 @@ export class ConnectionSvgView {
   private readonly path = createSvgElement('path', 'mlp-connection-path')
   private readonly hitArea = createSvgElement('path', 'mlp-connection-hit-area')
   private readonly label = new WeightLabelSvgView()
+  readonly labelGroup = this.label.group
 
   constructor(initialConnection: ConnectionSnapshot) {
     this.group.dataset.connection = connectionKey(initialConnection)
-    this.group.append(this.path, this.hitArea, this.label.group)
+    this.group.append(this.path, this.hitArea)
   }
 
   update(update: ConnectionUpdate): void {
@@ -27,10 +28,10 @@ export class ConnectionSvgView {
     const key = connectionKey(connection)
     const curveOffset = Math.max(40, Math.abs(to.x - from.x) * 0.42)
     const pathData = [
-      `M ${from.x + 22} ${from.y}`,
+      `M ${from.x + from.radius + 2} ${from.y}`,
       `C ${from.x + curveOffset} ${from.y}`,
       `${to.x - curveOffset} ${to.y}`,
-      `${to.x - 22} ${to.y}`,
+      `${to.x - to.radius - 2} ${to.y}`,
     ].join(' ')
     const magnitude = clamp(Math.abs(connection.weight), 0.2, 4)
 
@@ -54,5 +55,6 @@ export class ConnectionSvgView {
 
   destroy(): void {
     this.group.remove()
+    this.labelGroup.remove()
   }
 }

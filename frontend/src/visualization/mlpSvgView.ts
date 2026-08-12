@@ -22,6 +22,10 @@ export class MlpSvgView {
   private readonly svg: SVGSVGElement
   private readonly layoutEngine = new MlpLayoutEngine()
   private readonly connectionGroup = createSvgElement('g', 'mlp-connections')
+  private readonly connectionLabelGroup = createSvgElement(
+    'g',
+    'mlp-connection-labels',
+  )
   private readonly layerGroup = createSvgElement('g', 'mlp-layers')
   private readonly overlayGroup = createSvgElement('g', 'mlp-overlays')
   private readonly layerViews = new Map<string, MlpLayerSvgView>()
@@ -42,12 +46,19 @@ export class MlpSvgView {
       'aria-label',
       'Static multilayer perceptron visualization',
     )
-    this.svg.append(this.connectionGroup, this.layerGroup, this.overlayGroup)
+    this.svg.append(
+      this.connectionGroup,
+      this.layerGroup,
+      this.connectionLabelGroup,
+      this.overlayGroup,
+    )
     this.overlayGroup.append(this.outputPanel.group, this.progressView.group)
   }
 
   update(snapshot: MlpSvgSnapshot): void {
     const layout = this.layoutEngine.compute(snapshot.topology)
+    this.svg.setAttribute('viewBox', `0 0 ${layout.width} ${layout.height}`)
+    this.svg.style.aspectRatio = `${layout.width} / ${layout.height}`
     this.updateConnections(snapshot, layout)
     this.updateLayers(snapshot, layout)
     this.outputPanel.update(snapshot.outputs, layout)
@@ -114,6 +125,7 @@ export class MlpSvgView {
         connectionView = new ConnectionSvgView(connection)
         this.connectionViews.set(key, connectionView)
         this.connectionGroup.append(connectionView.group)
+        this.connectionLabelGroup.append(connectionView.labelGroup)
       }
 
       const selectedIncomingConnection = snapshot.selectedNeuronId === connection.to
