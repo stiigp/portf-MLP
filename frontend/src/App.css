@@ -228,6 +228,10 @@ button:disabled {
   stroke-width: 2;
 }
 
+.mlp-neuron {
+  cursor: pointer;
+}
+
 .mlp-neuron-circle {
   fill: var(--bg);
   stroke: var(--border);
@@ -306,13 +310,8 @@ button:disabled {
   stroke: #dc2626;
 }
 
-.mlp-connection[data-selected='true'] .mlp-connection-path,
 .mlp-connection[data-highlighted='true'] .mlp-connection-path {
   opacity: 0.96;
-}
-
-.mlp-connection[data-selected='true'] .mlp-connection-path {
-  stroke: var(--accent);
 }
 
 .mlp-weight-label {

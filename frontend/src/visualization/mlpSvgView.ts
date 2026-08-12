@@ -14,6 +14,10 @@ import {
 
 export type { MlpSvgSnapshot } from './mlpSvgTypes'
 
+type MlpSvgViewOptions = {
+  onNeuronSelect?: (id: string) => void
+}
+
 export class MlpSvgView {
   private readonly svg: SVGSVGElement
   private readonly layoutEngine = new MlpLayoutEngine()
@@ -24,9 +28,14 @@ export class MlpSvgView {
   private readonly connectionViews = new Map<string, ConnectionSvgView>()
   private readonly outputPanel = new OutputPanelSvgView()
   private readonly progressView = new TrainingProgressSvgView()
+  private readonly options: MlpSvgViewOptions
 
-  constructor(svg: SVGSVGElement) {
+  constructor(
+    svg: SVGSVGElement,
+    options: MlpSvgViewOptions = {},
+  ) {
     this.svg = svg
+    this.options = options
     this.svg.setAttribute('viewBox', `0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`)
     this.svg.setAttribute('role', 'img')
     this.svg.setAttribute(
@@ -64,7 +73,9 @@ export class MlpSvgView {
       let layerView = this.layerViews.get(key)
 
       if (!layerView) {
-        layerView = new MlpLayerSvgView()
+        layerView = new MlpLayerSvgView({
+          onNeuronSelect: this.options.onNeuronSelect,
+        })
         this.layerViews.set(key, layerView)
         this.layerGroup.append(layerView.group)
       }
@@ -105,15 +116,14 @@ export class MlpSvgView {
         this.connectionGroup.append(connectionView.group)
       }
 
+      const selectedIncomingConnection = snapshot.selectedNeuronId === connection.to
+
       connectionView.update({
         connection,
         from,
         to,
-        selected: snapshot.selectedConnectionKey === key,
-        highlighted:
-          snapshot.selectedNeuronId === connection.from ||
-          snapshot.selectedNeuronId === connection.to,
-        labelsVisible: snapshot.selectedConnectionKey === key,
+        highlighted: selectedIncomingConnection,
+        labelsVisible: selectedIncomingConnection,
       })
     }
 
@@ -203,6 +213,5 @@ export function createStaticMlpSnapshot(): MlpSvgSnapshot {
     status: 'RUNNING',
     eventType: 'WEIGHTS_UPDATE',
     selectedNeuronId: 'o-0',
-    selectedConnectionKey: 'h-1-0->o-0',
   }
 }

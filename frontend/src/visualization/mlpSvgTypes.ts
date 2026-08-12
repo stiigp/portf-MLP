@@ -38,5 +38,4 @@ export type MlpSvgSnapshot = {
   status: TrainingSessionStatus | null
   eventType: TrainingEventType | null
   selectedNeuronId?: string | null
-  selectedConnectionKey?: string | null
 }

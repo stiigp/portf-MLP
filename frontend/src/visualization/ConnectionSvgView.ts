@@ -7,7 +7,6 @@ type ConnectionUpdate = {
   connection: ConnectionSnapshot
   from: Point
   to: Point
-  selected: boolean
   highlighted: boolean
   labelsVisible: boolean
 }
@@ -17,7 +16,6 @@ export class ConnectionSvgView {
   private readonly path = createSvgElement('path', 'mlp-connection-path')
   private readonly hitArea = createSvgElement('path', 'mlp-connection-hit-area')
   private readonly label = new WeightLabelSvgView()
-  private previousWeight: number | null = null
 
   constructor(initialConnection: ConnectionSnapshot) {
     this.group.dataset.connection = connectionKey(initialConnection)
@@ -35,16 +33,11 @@ export class ConnectionSvgView {
       `${to.x - 22} ${to.y}`,
     ].join(' ')
     const magnitude = clamp(Math.abs(connection.weight), 0.2, 4)
-    const recentlyUpdated =
-      this.previousWeight !== null &&
-      Math.abs(connection.weight - this.previousWeight) > 0.0001
 
     this.group.dataset.connection = key
     this.group.dataset.sign =
       connection.weight > 0 ? 'positive' : connection.weight < 0 ? 'negative' : 'zero'
-    this.group.dataset.selected = String(update.selected)
     this.group.dataset.highlighted = String(update.highlighted)
-    this.group.dataset.updated = String(recentlyUpdated)
 
     this.path.setAttribute('d', pathData)
     this.path.setAttribute('stroke-width', String(0.8 + magnitude * 0.8))
@@ -55,10 +48,8 @@ export class ConnectionSvgView {
       value: connection.weight,
       x: (from.x + to.x) / 2,
       y: (from.y + to.y) / 2,
-      visible: update.labelsVisible || recentlyUpdated,
+      visible: update.labelsVisible,
     })
-
-    this.previousWeight = connection.weight
   }
 
   destroy(): void {

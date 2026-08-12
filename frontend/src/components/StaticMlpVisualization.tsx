@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import {
   createStaticMlpSnapshot,
@@ -8,21 +8,36 @@ import {
 export function StaticMlpVisualization() {
   const svgRef = useRef<SVGSVGElement | null>(null)
   const viewRef = useRef<MlpSvgView | null>(null)
-  const snapshot = useMemo(() => createStaticMlpSnapshot(), [])
+  const initialSnapshot = useMemo(() => createStaticMlpSnapshot(), [])
+  const [selectedNeuronId, setSelectedNeuronId] = useState<string | null>(
+    initialSnapshot.selectedNeuronId ?? null,
+  )
+  const snapshot = useMemo(
+    () => ({
+      ...initialSnapshot,
+      selectedNeuronId,
+    }),
+    [initialSnapshot, selectedNeuronId],
+  )
 
   useEffect(() => {
     if (!svgRef.current) {
       return
     }
 
-    const view = new MlpSvgView(svgRef.current)
+    const view = new MlpSvgView(svgRef.current, {
+      onNeuronSelect: setSelectedNeuronId,
+    })
     viewRef.current = view
-    view.update(snapshot)
 
     return () => {
       view.destroy()
       viewRef.current = null
     }
+  }, [])
+
+  useEffect(() => {
+    viewRef.current?.update(snapshot)
   }, [snapshot])
 
   return (

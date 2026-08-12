@@ -7,13 +7,19 @@ import type {
   MlpSvgSnapshot,
 } from './mlpSvgTypes'
 
+type MlpLayerSvgViewOptions = {
+  onNeuronSelect?: (id: string) => void
+}
+
 export class MlpLayerSvgView {
   readonly group = createSvgElement('g', 'mlp-layer')
   private readonly rail = createSvgElement('line', 'mlp-layer-rail')
   private readonly label = createSvgElement('text', 'mlp-layer-label')
   private readonly neuronViews = new Map<string, NeuronSvgView>()
+  private readonly options: MlpLayerSvgViewOptions
 
-  constructor() {
+  constructor(options: MlpLayerSvgViewOptions = {}) {
+    this.options = options
     this.group.append(this.rail, this.label)
   }
 
@@ -55,6 +61,7 @@ export class MlpLayerSvgView {
         position,
         selected: snapshot.selectedNeuronId === neuronId,
         output: snapshot.outputs.find((output) => output.id === neuronId),
+        onSelect: this.options.onNeuronSelect,
       })
     }
 

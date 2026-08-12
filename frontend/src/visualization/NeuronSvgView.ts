@@ -8,6 +8,7 @@ type NeuronUpdate = {
   position: Point
   selected: boolean
   output?: OutputValueSnapshot
+  onSelect?: (id: string) => void
 }
 
 export class NeuronSvgView {
@@ -35,6 +36,7 @@ export class NeuronSvgView {
     this.group.dataset.error =
       output && outputError > 0.25 ? 'high' : output ? 'low' : 'none'
     this.group.setAttribute('transform', `translate(${position.x} ${position.y})`)
+    this.group.onclick = () => update.onSelect?.(id)
 
     this.halo.setAttribute('r', String(radius + 7))
     this.circle.setAttribute('r', String(radius))
