@@ -20,12 +20,14 @@ export class NeuronSvgView {
 
   constructor(id: string) {
     this.id = id
+    this.idLabel.setAttribute('fill', 'black')
+    this.valueLabel.setAttribute('fill', 'black')
     this.group.append(this.halo, this.circle, this.idLabel, this.valueLabel)
   }
 
   update(update: NeuronUpdate): void {
     const { id, kind, position, output } = update
-    const radius = kind === 'output' ? 24 : 20
+    const radius = kind === 'output' ? 30 : 20
     const outputError = output ? Math.abs(output.output - output.expected) : 0
 
     this.group.dataset.kind = kind

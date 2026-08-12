@@ -15,7 +15,7 @@ export class OutputPanelSvgView {
   update(outputs: OutputValueSnapshot[], layout: MlpLayoutState): void {
     const activeOutputIds = new Set(outputs.map((output) => output.id))
 
-    this.group.setAttribute('transform', `translate(${layout.width - 220} 112)`)
+    this.group.setAttribute('transform', `translate(${layout.width - 180} 112)`)
     this.title.textContent = 'Output values'
 
     outputs.forEach((output, index) => {

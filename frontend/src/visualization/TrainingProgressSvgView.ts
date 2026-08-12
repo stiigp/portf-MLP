@@ -12,7 +12,7 @@ export class TrainingProgressSvgView {
   }
 
   update(snapshot: MlpSvgSnapshot, layout: MlpLayoutState): void {
-    this.group.setAttribute('transform', `translate(${layout.width - 220} 336)`)
+    this.group.setAttribute('transform', `translate(${layout.width - 180} 336)`)
     this.title.textContent = 'Training sample'
 
     if (snapshot.progress) {

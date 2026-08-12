@@ -259,8 +259,6 @@ button:disabled {
   stroke: var(--accent);
 }
 
-.mlp-neuron-id,
-.mlp-neuron-value,
 .mlp-weight-label-text,
 .mlp-output-row-label,
 .mlp-output-row-value,
@@ -272,13 +270,17 @@ button:disabled {
 }
 
 .mlp-neuron-id {
+  font-family: var(--mono);
+  letter-spacing: 0;
+}
+
+.mlp-neuron-id {
   font-size: 12px;
   font-weight: 700;
   text-anchor: middle;
 }
 
 .mlp-neuron-value {
-  fill: var(--muted);
   font-size: 9px;
   text-anchor: middle;
 }
