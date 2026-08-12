@@ -122,7 +122,7 @@ function App() {
     setConnectionState('connected')
   }
 
-  async function handleStartMushroomsTraining(
+  async function handleStartTraining(
     trainingForm: TrainingFormState,
   ): Promise<void> {
     try {
@@ -140,7 +140,6 @@ function App() {
       setTraining(true)
       stompClient.startTraining({
         sessionId: session.sessionId,
-        databaseName: 'mushrooms',
         ...trainingForm,
         eventOptions: defaultEventOptions,
       })
@@ -161,8 +160,8 @@ function App() {
           <p className="eyebrow">MLP websocket monitor</p>
           <h1>Training status</h1>
           <p>
-            Start a mushrooms training run and watch the backend event stream
-            update this page.
+            Start a training run and watch the backend event stream update this
+            page.
           </p>
         </div>
 
@@ -170,7 +169,7 @@ function App() {
           connectionBusy={connectionState === 'connecting'}
           training={training}
           onStartTraining={(trainingForm) => {
-            void handleStartMushroomsTraining(trainingForm)
+            void handleStartTraining(trainingForm)
           }}
         />
 

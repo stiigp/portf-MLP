@@ -1,4 +1,5 @@
 export interface TrainingFormState {
+  databaseName: string
   hiddenLayersNumber: number
   activationFunctionName: string
   learningRate: number
@@ -13,6 +14,7 @@ interface TrainingFormProps {
 }
 
 const defaultTrainingForm: TrainingFormState = {
+  databaseName: 'mushrooms',
   hiddenLayersNumber: 1,
   activationFunctionName: 'logistic',
   learningRate: 0.0001,
@@ -33,6 +35,18 @@ export function TrainingForm({
         onStartTraining(readTrainingForm(event.currentTarget))
       }}
     >
+      <label>
+        <span>Database</span>
+        <select
+          name="databaseName"
+          defaultValue={defaultTrainingForm.databaseName}
+          disabled={training}
+        >
+          <option value="mushrooms">Mushrooms</option>
+          <option value="fruits">Fruits</option>
+        </select>
+      </label>
+
       <label>
         <span>Hidden layers</span>
         <input
@@ -101,7 +115,7 @@ export function TrainingForm({
 
       <div className="actions">
         <button type="submit" disabled={training || connectionBusy}>
-          {training ? 'Training...' : 'Start mushrooms training'}
+          {training ? 'Training...' : 'Start training'}
         </button>
       </div>
     </form>
@@ -112,6 +126,7 @@ function readTrainingForm(form: HTMLFormElement): TrainingFormState {
   const formData = new FormData(form)
 
   return {
+    databaseName: readString(formData, 'databaseName'),
     hiddenLayersNumber: readNumber(formData, 'hiddenLayersNumber'),
     activationFunctionName: readString(formData, 'activationFunctionName'),
     learningRate: readNumber(formData, 'learningRate'),
