@@ -6,7 +6,7 @@ import {
   TrainingForm,
   type TrainingFormState,
 } from './components/TrainingForm'
-import { StaticMlpVisualization } from './components/StaticMlpVisualization'
+import { MlpVisualization } from './components/MlpVisualization'
 import { createTrainingSession } from './services/mlpSessionApi'
 import { stompClient } from './services/mlpStompClient'
 import type { StartTrainingPayload } from './types/StartTrainingPayload'
@@ -204,7 +204,13 @@ function App() {
           </p>
         </section>
 
-        <StaticMlpVisualization />
+        <MlpVisualization
+          topology={snapshot.topology}
+          connections={snapshot.weights}
+          outputs={snapshot.outputs}
+          progress={snapshot.progress}
+          eventType={lastEvent?.type ?? null}
+        />
 
         <section className="details">
           <div>

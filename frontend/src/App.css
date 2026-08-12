@@ -205,6 +205,17 @@ button:disabled {
   overflow: visible;
 }
 
+.mlp-visualization-empty {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+}
+
+.mlp-visualization-empty span {
+  color: var(--muted);
+  font: 700 14px/1 var(--sans);
+}
+
 .mlp-layer-rail {
   stroke: color-mix(in srgb, var(--border) 70%, transparent);
   stroke-width: 1;
