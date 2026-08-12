@@ -304,7 +304,7 @@ button:disabled {
   fill: none;
   stroke: #64748b;
   stroke-linecap: round;
-  opacity: 0.48;
+  opacity: 0.18;
 }
 
 .mlp-connection-hit-area {
@@ -314,15 +314,27 @@ button:disabled {
 }
 
 .mlp-connection[data-sign='positive'] .mlp-connection-path {
-  stroke: #0891b2;
+  stroke: #0e7490;
 }
 
 .mlp-connection[data-sign='negative'] .mlp-connection-path {
-  stroke: #dc2626;
+  stroke: #b91c1c;
 }
 
 .mlp-connection[data-highlighted='true'] .mlp-connection-path {
-  opacity: 0.96;
+  opacity: 0.88;
+}
+
+@keyframes mlp-connection-weight-pulse {
+  0% {
+    opacity: 0.95;
+    /* filter: drop-shadow(0 0 5px rgba(250, 204, 21, 0.85)); */
+  }
+
+  100% {
+    opacity: 0.18;
+    /* filter: drop-shadow(0 0 0 rgba(250, 204, 21, 0)); */
+  }
 }
 
 .mlp-weight-label {

@@ -42,7 +42,7 @@ export class NeuronSvgView {
     this.circle.setAttribute('r', String(radius))
 
     this.idLabel.setAttribute('y', '5')
-    this.idLabel.textContent = kind === 'output' ? '' : id
+    this.idLabel.textContent = displayNeuronId(id, kind)
 
     this.valueLabel.setAttribute('y', '4')
     this.valueLabel.textContent = output
@@ -54,3 +54,17 @@ export class NeuronSvgView {
     this.group.remove()
   }
 }
+
+function displayNeuronId(id: string, kind: LayerTopology['type']): string {
+  if (kind === 'output') {
+    return ''
+  }
+
+  if (kind === 'hidden') {
+    const hiddenNeuronIndex = id.split('-').at(-1)
+
+    return hiddenNeuronIndex ? `h-${hiddenNeuronIndex}` : id
+  }
+
+  return id
+ }

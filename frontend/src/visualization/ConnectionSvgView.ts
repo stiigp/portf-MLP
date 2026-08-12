@@ -9,6 +9,7 @@ type ConnectionUpdate = {
   to: NeuronLayout
   highlighted: boolean
   labelsVisible: boolean
+  pulse: boolean
 }
 
 export class ConnectionSvgView {
@@ -34,6 +35,9 @@ export class ConnectionSvgView {
       `${to.x - to.radius - 2} ${to.y}`,
     ].join(' ')
     const magnitude = clamp(Math.abs(connection.weight), 0.2, 4)
+    const strokeWidth = update.highlighted
+      ? 1.1 + magnitude * 0.18
+      : 0.55 + magnitude * 0.2
 
     this.group.dataset.connection = key
     this.group.dataset.sign =
@@ -41,8 +45,12 @@ export class ConnectionSvgView {
     this.group.dataset.highlighted = String(update.highlighted)
 
     this.path.setAttribute('d', pathData)
-    this.path.setAttribute('stroke-width', String(0.8 + magnitude * 0.8))
+    this.path.setAttribute('stroke-width', String(strokeWidth))
     this.hitArea.setAttribute('d', pathData)
+
+    if (update.pulse) {
+      this.pulseWeightUpdate()
+    }
 
     this.label.update({
       key,
@@ -56,5 +64,11 @@ export class ConnectionSvgView {
   destroy(): void {
     this.group.remove()
     this.labelGroup.remove()
+  }
+
+  private pulseWeightUpdate(): void {
+    this.path.style.animation = 'none'
+    void this.path.getBoundingClientRect()
+    this.path.style.animation = 'mlp-connection-weight-pulse 520ms ease-out'
   }
 }

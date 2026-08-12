@@ -18,6 +18,14 @@ type MlpSvgViewOptions = {
   onNeuronSelect?: (id: string) => void
 }
 
+const WEIGHT_PULSE_MAX_CONNECTIONS_PER_UPDATE = 30
+const WEIGHT_PULSE_MIN_DELTA = 0.001
+
+type ConnectionWeightDelta = {
+  key: string
+  delta: number
+}
+
 export class MlpSvgView {
   private readonly svg: SVGSVGElement
   private readonly layoutEngine = new MlpLayoutEngine()
@@ -30,6 +38,7 @@ export class MlpSvgView {
   private readonly overlayGroup = createSvgElement('g', 'mlp-overlays')
   private readonly layerViews = new Map<string, MlpLayerSvgView>()
   private readonly connectionViews = new Map<string, ConnectionSvgView>()
+  private readonly previousConnectionWeights = new Map<string, number>()
   private readonly outputPanel = new OutputPanelSvgView()
   private readonly progressView = new TrainingProgressSvgView()
   private readonly options: MlpSvgViewOptions
@@ -69,6 +78,7 @@ export class MlpSvgView {
     this.svg.replaceChildren()
     this.layerViews.clear()
     this.connectionViews.clear()
+    this.previousConnectionWeights.clear()
   }
 
   private updateLayers(
@@ -107,6 +117,7 @@ export class MlpSvgView {
     layout: MlpLayoutState,
   ): void {
     const activeConnectionKeys = new Set<string>()
+    const pulsingConnectionKeys = this.computePulsingConnectionKeys(snapshot)
 
     for (const connection of snapshot.connections) {
       const key = connectionKey(connection)
@@ -136,6 +147,7 @@ export class MlpSvgView {
         to,
         highlighted: selectedIncomingConnection,
         labelsVisible: selectedIncomingConnection,
+        pulse: pulsingConnectionKeys.has(key),
       })
     }
 
@@ -143,6 +155,50 @@ export class MlpSvgView {
       if (!activeConnectionKeys.has(key)) {
         connectionView.destroy()
         this.connectionViews.delete(key)
+      }
+    }
+  }
+
+  private computePulsingConnectionKeys(
+    snapshot: MlpSvgSnapshot,
+  ): Set<string> {
+    const activeConnectionKeys = new Set(
+      snapshot.connections.map((connection) => connectionKey(connection)),
+    )
+
+    const weightDeltas: ConnectionWeightDelta[] = []
+
+    for (const connection of snapshot.connections) {
+      const key = connectionKey(connection)
+      const previousWeight = this.previousConnectionWeights.get(key)
+
+      if (previousWeight !== undefined) {
+        const delta = Math.abs(connection.weight - previousWeight)
+
+        if (delta > WEIGHT_PULSE_MIN_DELTA) {
+          weightDeltas.push({ key, delta })
+        }
+      }
+
+      this.previousConnectionWeights.set(key, connection.weight)
+    }
+
+    this.prunePreviousConnectionWeights(activeConnectionKeys)
+
+    return new Set(
+      weightDeltas
+        .sort((left, right) => right.delta - left.delta)
+        .slice(0, WEIGHT_PULSE_MAX_CONNECTIONS_PER_UPDATE)
+        .map((weightDelta) => weightDelta.key),
+    )
+  }
+
+  private prunePreviousConnectionWeights(
+    activeConnectionKeys: Set<string>,
+  ): void {
+    for (const key of this.previousConnectionWeights.keys()) {
+      if (!activeConnectionKeys.has(key)) {
+        this.previousConnectionWeights.delete(key)
       }
     }
   }
