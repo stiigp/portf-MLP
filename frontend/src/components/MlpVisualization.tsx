@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 
 import type {
   ConnectionSnapshot,
@@ -75,6 +75,16 @@ export function MlpVisualization({
     }
   }, [hasTopology, snapshot])
 
+  function handleVisualizationClick(event: MouseEvent<SVGSVGElement>): void {
+    const target = event.target
+
+    if (target instanceof Element && target.closest('.mlp-neuron')) {
+      return
+    }
+
+    setSelectedNeuronId(null)
+  }
+
   return (
     <section className="mlp-visualization-section">
       <div className="mlp-visualization-heading">
@@ -83,7 +93,11 @@ export function MlpVisualization({
       </div>
 
       {hasTopology ? (
-        <svg ref={svgRef} className="mlp-visualization" />
+        <svg
+          ref={svgRef}
+          className="mlp-visualization"
+          onClick={handleVisualizationClick}
+        />
       ) : (
         <div className="mlp-visualization mlp-visualization-empty">
           <span>No MLP topology yet</span>
