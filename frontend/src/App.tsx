@@ -59,7 +59,7 @@ function App() {
     }
 
     return snapshot.topology
-      .map((layer) => `${layer.type}[${layer.index}]: ${layer.perceptronIds.length}`)
+      .map((layer) => layer.type === "hidden" ? `${layer.type}(${layer.index+1}): ${layer.perceptronIds.length}` : `${layer.type}: ${layer.perceptronIds.length}`)
       .join(' | ')
   }, [snapshot.topology])
 
@@ -155,57 +155,65 @@ function App() {
 
   return (
     <main className="app-shell">
-      <section className="training-panel">
-        <div className="heading-group">
-          <p className="eyebrow">MLP websocket monitor</p>
-          <h1>Training status</h1>
-          <p>
-            Start a training run and watch the backend event stream update this
-            page.
-          </p>
+      <section className="training-layout">
+        <aside className="controls-panel" aria-labelledby="training-title">
+          <div className="heading-group">
+            <p className="eyebrow">MLP websocket monitor</p>
+            <h1 id="training-title">Training status</h1>
+            <p>
+              Start a training run and watch the backend event stream update
+              this page.
+            </p>
+          </div>
+
+          <TrainingForm
+            connectionBusy={connectionState === 'connecting'}
+            training={training}
+            onStartTraining={(trainingForm) => {
+              void handleStartTraining(trainingForm)
+            }}
+          />
+        </aside>
+
+        <div className="visualization-panel">
+          <MlpVisualization
+            topology={snapshot.topology}
+            connections={snapshot.weights}
+            outputs={snapshot.outputs}
+            progress={snapshot.progress}
+            eventType={lastEvent?.type ?? null}
+          />
         </div>
 
-        <TrainingForm
-          connectionBusy={connectionState === 'connecting'}
-          training={training}
-          onStartTraining={(trainingForm) => {
-            void handleStartTraining(trainingForm)
-          }}
-        />
-
-        <MlpVisualization
-          topology={snapshot.topology}
-          connections={snapshot.weights}
-          outputs={snapshot.outputs}
-          progress={snapshot.progress}
-          eventType={lastEvent?.type ?? null}
-        />
-
-        <section className="status-grid" aria-live="polite">
-          <div>
-            <span>Connection</span>
-            <strong>{connectionState}</strong>
-          </div>
-          <div>
-            <span>Training</span>
-            <strong>{training ? 'running' : 'idle'}</strong>
-          </div>
-          <div>
-            <span>Epoch</span>
-            <strong>{currentProgress?.epoch ?? 'N/A'}</strong>
-          </div>
-          <div>
-            <span>Error</span>
-            <strong>{currentProgress ? formatNumber(currentProgress.networkError) : 'N/A'}</strong>
-          </div>
-        </section>
-
-        <section className="details">
-          <div>
-            <span>Topology</span>
-            <p>{topologySummary}</p>
-          </div>
-        </section>
+        <aside className="stats-panel" aria-label="Training statistics">
+          <h2>Live stats</h2>
+          <section className="status-grid" aria-live="polite">
+            <div>
+              <span>Connection</span>
+              <strong>{connectionState}</strong>
+            </div>
+            <div>
+              <span>Training</span>
+              <strong>{training ? 'running' : 'idle'}</strong>
+            </div>
+            <div>
+              <span>Epoch</span>
+              <strong>{currentProgress?.epoch ?? 'N/A'}</strong>
+            </div>
+            <div>
+              <span>Error</span>
+              <strong>
+                {currentProgress
+                  ? formatNumber(currentProgress.networkError)
+                  : 'N/A'}
+              </strong>
+            </div>
+            <div>
+              <span>Topology</span>
+              <strong>{topologySummary}</strong>
+            </div>
+          </section>
+        </aside>
       </section>
     </main>
   )
