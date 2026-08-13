@@ -6,6 +6,7 @@ import {
 } from '@stomp/stompjs'
 import type { StartTrainingPayload } from '../types/StartTrainingPayload'
 import type { TrainingEvent } from '../types/TrainingEvent'
+import { apiWebSocketUrl } from '../config/apiConfig'
 
 type TrainingEventHandler = (event: TrainingEvent) => void
 type StompErrorHandler = (frame: Frame) => void
@@ -19,7 +20,7 @@ interface MlpStompClientOptions {
   debug?: boolean
 }
 
-const DEFAULT_BROKER_URL = 'ws://localhost:8080/ws'
+const DEFAULT_BROKER_URL = apiWebSocketUrl('/ws')
 
 export class MlpStompClient {
   private readonly client: Client

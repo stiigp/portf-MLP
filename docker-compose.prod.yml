@@ -13,6 +13,9 @@ services:
       - proxy
 
   frontend:
+    build:
+      args:
+        VITE_API_BASE_URL: https://${API_DOMAIN}
     environment:
       FRONTEND_ALLOWED_HOSTS: ${APP_DOMAIN}
       VITE_API_BASE_URL: https://${API_DOMAIN}

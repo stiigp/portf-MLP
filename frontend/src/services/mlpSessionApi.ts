@@ -1,7 +1,8 @@
 import type { CreateTrainingSessionResponse } from '../types/TrainingSession'
+import { apiUrl } from '../config/apiConfig'
 
 export async function createTrainingSession(): Promise<CreateTrainingSessionResponse> {
-  const response = await fetch('/api/mlp/sessions', {
+  const response = await fetch(apiUrl('/api/mlp/sessions'), {
     method: 'POST',
   })
 
