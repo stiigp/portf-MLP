@@ -1,0 +1,31 @@
+services:
+  api:
+    environment:
+      ENVIRONMENT: production
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mlpapi.rule=Host(`${API_DOMAIN}`)"
+      - "traefik.http.routers.mlpapi.entrypoints=websecure"
+      - "traefik.http.routers.mlpapi.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-lets-encrypt}"
+      - "traefik.http.services.mlpapi.loadbalancer.server.port=8080"
+    networks:
+      - proxy
+
+  frontend:
+    environment:
+      FRONTEND_ALLOWED_HOSTS: ${APP_DOMAIN}
+      VITE_API_BASE_URL: https://${API_DOMAIN}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mlp.rule=Host(`${APP_DOMAIN}`)"
+      - "traefik.http.routers.mlp.entrypoints=websecure"
+      - "traefik.http.routers.mlp.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-lets-encrypt}"
+      - "traefik.http.services.mlp.loadbalancer.server.port=80"
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true
+    name: ${TRAEFIK_NETWORK:-traefik_proxy}

@@ -62,7 +62,7 @@ function displayNeuronId(id: string, kind: LayerTopology['type']): string {
 
   if (kind === 'hidden') {
     const hiddenNeuronIndex = id.split('-').at(-1)
-
+    
     return hiddenNeuronIndex ? `h-${hiddenNeuronIndex}` : id
   }
 
