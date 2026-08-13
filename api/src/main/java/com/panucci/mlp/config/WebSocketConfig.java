@@ -1,5 +1,6 @@
 package com.panucci.mlp.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
@@ -8,20 +9,22 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 
 @Configuration
 @EnableWebSocketMessageBroker
-public class WebSocketConfig implements WebSocketMessageBrokerConfigurer{
+public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+    private final String[] allowedOrigins;
+
+    public WebSocketConfig(@Value("${app.frontend-origin}") String frontendOrigin) {
+        this.allowedOrigins = CorsConfig.splitOrigins(frontendOrigin);
+    }
+
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        // Destinos usados para o servidor publicar mensagens.
         registry.enableSimpleBroker("/topic");
-
-        // Prefixo das mensagens enviadas pelo cliente aos controllers.
         registry.setApplicationDestinationPrefixes("/app");
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // Endpoint usado apenas para estabelecer a conexão WebSocket.
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*");
+                .setAllowedOrigins(this.allowedOrigins);
     }
 }
