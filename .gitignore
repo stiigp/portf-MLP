@@ -53,3 +53,6 @@ frontend/.vite-inspect/
 # OS files
 .DS_Store
 Thumbs.db
+
+run_dev.sh
+run_prod.sh
