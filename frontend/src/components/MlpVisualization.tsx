@@ -4,9 +4,6 @@ import type {
   ConnectionSnapshot,
   LayerTopology,
   OutputValueSnapshot,
-  TrainingEventType,
-  TrainingFinishedEvent,
-  TrainingProgressEvent,
 } from '../types/TrainingEvent'
 import { MlpSvgView } from '../visualization/mlpSvgView'
 import type { MlpSvgSnapshot } from '../visualization/mlpSvgTypes'
@@ -15,43 +12,35 @@ type MlpVisualizationProps = {
   topology: LayerTopology[]
   connections: ConnectionSnapshot[]
   outputs: OutputValueSnapshot[]
-  progress: TrainingProgressEvent | TrainingFinishedEvent | null
-  eventType: TrainingEventType | null
 }
 
 export function MlpVisualization({
   topology,
   connections,
   outputs,
-  progress,
-  eventType,
 }: MlpVisualizationProps) {
   const svgRef = useRef<SVGSVGElement | null>(null)
   const viewRef = useRef<MlpSvgView | null>(null)
   const [selectedNeuronId, setSelectedNeuronId] = useState<string | null>(null)
   const hasTopology = topology.length > 0
+  const visibleSelectedNeuronId =
+    selectedNeuronId &&
+    topology.some((layer) => layer.perceptronIds.includes(selectedNeuronId))
+      ? selectedNeuronId
+      : null
 
   const snapshot = useMemo<MlpSvgSnapshot>(
     () => ({
       topology,
       connections,
       outputs,
-      progress,
+      progress: null,
       status: null,
-      eventType,
-      selectedNeuronId,
+      eventType: null,
+      selectedNeuronId: visibleSelectedNeuronId,
     }),
-    [connections, eventType, outputs, progress, selectedNeuronId, topology],
+    [connections, outputs, visibleSelectedNeuronId, topology],
   )
-
-  useEffect(() => {
-    if (
-      selectedNeuronId &&
-      !topology.some((layer) => layer.perceptronIds.includes(selectedNeuronId))
-    ) {
-      setSelectedNeuronId(null)
-    }
-  }, [selectedNeuronId, topology])
 
   useEffect(() => {
     if (!svgRef.current || !hasTopology) {

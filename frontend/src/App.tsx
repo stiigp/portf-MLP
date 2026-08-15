@@ -21,20 +21,25 @@ import type {
 
 type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error'
 
-interface TrainingSnapshot {
-  lastEvent: TrainingEvent | null
-  progress: TrainingProgressEvent | TrainingFinishedEvent | null
-  topology: LayerTopology[]
-  outputs: OutputValueSnapshot[]
-  weights: ConnectionSnapshot[]
-}
+type TrainingStats = Pick<
+  TrainingProgressEvent | TrainingFinishedEvent,
+  'epoch' | 'sampleIndex' | 'networkError'
+>
 
-const initialSnapshot: TrainingSnapshot = {
-  lastEvent: null,
-  progress: null,
-  topology: [],
-  outputs: [],
-  weights: [],
+const initialTopology: LayerTopology[] = []
+const initialOutputs: OutputValueSnapshot[] = []
+const initialWeights: ConnectionSnapshot[] = []
+
+const progressEventToStats = (
+  event: TrainingProgressEvent | TrainingFinishedEvent,
+): TrainingStats => ({
+  epoch: event.epoch,
+  sampleIndex: event.sampleIndex,
+  networkError: event.networkError,
+})
+
+const isTrainingStatus = (status: string): boolean => {
+  return status === 'QUEUED' || status === 'RUNNING'
 }
 
 const defaultEventOptions: StartTrainingPayload['eventOptions'] = {
@@ -46,7 +51,10 @@ const defaultEventOptions: StartTrainingPayload['eventOptions'] = {
 }
 
 function App() {
-  const [snapshot, setSnapshot] = useState<TrainingSnapshot>(initialSnapshot)
+  const [stats, setStats] = useState<TrainingStats | null>(null)
+  const [topology, setTopology] = useState<LayerTopology[]>(initialTopology)
+  const [outputs, setOutputs] = useState<OutputValueSnapshot[]>(initialOutputs)
+  const [weights, setWeights] = useState<ConnectionSnapshot[]>(initialWeights)
   const [training, setTraining] = useState<boolean>(false)
   const [connectionState, setConnectionState] =
     useState<ConnectionState>('disconnected')
@@ -54,14 +62,18 @@ function App() {
   const trainingSubscriptionRef = useRef<StompSubscription | null>(null)
 
   const topologySummary = useMemo(() => {
-    if (snapshot.topology.length === 0) {
+    if (topology.length === 0) {
       return 'Topology not received yet'
     }
 
-    return snapshot.topology
-      .map((layer) => layer.type === "hidden" ? `${layer.type}(${layer.index+1}): ${layer.perceptronIds.length}` : `${layer.type}: ${layer.perceptronIds.length}`)
+    return topology
+      .map((layer) =>
+        layer.type === 'hidden'
+          ? `${layer.type}(${layer.index + 1}): ${layer.perceptronIds.length}`
+          : `${layer.type}: ${layer.perceptronIds.length}`,
+      )
       .join(' | ')
-  }, [snapshot.topology])
+  }, [topology])
 
   useEffect(() => {
     return () => {
@@ -71,44 +83,34 @@ function App() {
   }, [])
 
   function handleTrainingEvent(event: TrainingEvent): void {
-    setSnapshot((current) => {
-      const next: TrainingSnapshot = {
-        ...current,
-        lastEvent: event,
-      }
-
-      switch (event.type) {
-        case 'TRAINING_STARTED':
-          next.topology = event.layers
-          next.progress = null
-          next.outputs = []
-          next.weights = []
-          break
-        case 'TRAINING_PROGRESS':
-          next.progress = event
-          break
-        case 'OUTPUT_VALUES':
-          next.outputs = event.outputs
-          break
-        case 'WEIGHTS_UPDATE':
-          next.weights = event.connections
-          break
-        case 'SESSION_STATUS':
-          break
-        case 'TRAINING_FINISHED':
-          next.progress = event
-          break
-      }
-
-      return next
-    })
-
-    if (event.type === 'SESSION_STATUS') {
-      setTraining(event.status === 'QUEUED' || event.status === 'RUNNING')
-      return
+    switch (event.type) {
+      case 'TRAINING_STARTED':
+        setTopology(event.layers)
+        setStats(null)
+        setOutputs(initialOutputs)
+        setWeights(initialWeights)
+        setTraining(true)
+        break
+      case 'TRAINING_PROGRESS':
+        setStats(progressEventToStats(event))
+        setTraining(true)
+        break
+      case 'OUTPUT_VALUES':
+        setOutputs(event.outputs)
+        setTraining(true)
+        break
+      case 'WEIGHTS_UPDATE':
+        setWeights(event.connections)
+        setTraining(true)
+        break
+      case 'SESSION_STATUS':
+        setTraining(isTrainingStatus(event.status))
+        break
+      case 'TRAINING_FINISHED':
+        setStats(progressEventToStats(event))
+        setTraining(false)
+        break
     }
-
-    setTraining(event.type !== 'TRAINING_FINISHED')
   }
 
   async function ensureConnected(): Promise<void> {
@@ -135,7 +137,10 @@ function App() {
         handleTrainingEvent,
       )
 
-      setSnapshot(initialSnapshot)
+      setStats(null)
+      setTopology(initialTopology)
+      setOutputs(initialOutputs)
+      setWeights(initialWeights)
       setCurrentSessionId(session.sessionId)
       setTraining(true)
       stompClient.startTraining({
@@ -149,9 +154,6 @@ function App() {
       console.error(error)
     }
   }
-
-  const currentProgress = snapshot.progress
-  const lastEvent = snapshot.lastEvent
 
   return (
     <main className="app-shell">
@@ -173,11 +175,10 @@ function App() {
 
         <div className="visualization-panel">
           <MlpVisualization
-            topology={snapshot.topology}
-            connections={snapshot.weights}
-            outputs={snapshot.outputs}
-            progress={snapshot.progress}
-            eventType={lastEvent?.type ?? null}
+            key={currentSessionId ?? 'no-session'}
+            topology={topology}
+            connections={weights}
+            outputs={outputs}
           />
         </div>
 
@@ -194,14 +195,12 @@ function App() {
             </div>
             <div>
               <span>Epoch</span>
-              <strong>{currentProgress?.epoch ?? 'N/A'}</strong>
+              <strong>{stats?.epoch ?? 'N/A'}</strong>
             </div>
             <div>
               <span>Error</span>
               <strong>
-                {currentProgress
-                  ? formatNumber(currentProgress.networkError)
-                  : 'N/A'}
+                {stats ? formatNumber(stats.networkError) : 'N/A'}
               </strong>
             </div>
             <div>
@@ -215,47 +214,8 @@ function App() {
   )
 }
 
-function isSampleEvent(
-  event: TrainingEvent | null,
-): event is Exclude<TrainingEvent, { type: 'SESSION_STATUS' }> {
-  return event !== null && event.type !== 'SESSION_STATUS'
-}
-
 function formatNumber(value: number): string {
   return Number.isFinite(value) ? value.toPrecision(6) : String(value)
-}
-
-function formatOutputs(outputs: OutputValueSnapshot[]): string {
-  if (outputs.length === 0) {
-    return 'No output values received yet'
-  }
-
-  return outputs
-    .map(
-      (output) =>
-        `${output.id}: ${formatNumber(output.output)} expected ${output.expected}`,
-    )
-    .join(' | ')
-}
-
-function formatWeights(weights: ConnectionSnapshot[]): string {
-  if (weights.length === 0) {
-    return 'No weight update received yet'
-  }
-
-  const visibleWeights = weights
-    .slice(0, 8)
-    .map(
-      (connection) =>
-        `${connection.from} -> ${connection.to}: ${formatNumber(connection.weight)}`,
-    )
-    .join(' | ')
-
-  const remainingCount = weights.length - 8
-
-  return remainingCount > 0
-    ? `${visibleWeights} | +${remainingCount} more`
-    : visibleWeights
 }
 
 export default App
