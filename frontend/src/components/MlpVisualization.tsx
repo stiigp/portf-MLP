@@ -87,11 +87,6 @@ export function MlpVisualization({
 
   return (
     <section className="mlp-visualization-section">
-      <div className="mlp-visualization-heading">
-        <h2>MLP visualization</h2>
-        <p>Live SVG view of the training topology, weights, and outputs.</p>
-      </div>
-
       {hasTopology ? (
         <svg
           ref={svgRef}

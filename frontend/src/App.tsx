@@ -158,12 +158,8 @@ function App() {
       <section className="training-layout">
         <aside className="controls-panel" aria-labelledby="training-title">
           <div className="heading-group">
-            <p className="eyebrow">MLP websocket monitor</p>
-            <h1 id="training-title">Training status</h1>
-            <p>
-              Start a training run and watch the backend event stream update
-              this page.
-            </p>
+            <p className="eyebrow">MLP from scratch + websocket monitor</p>
+            <h1 id="training-title">Training panel</h1>
           </div>
 
           <TrainingForm
