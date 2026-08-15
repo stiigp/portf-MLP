@@ -14,12 +14,12 @@ interface TrainingFormProps {
 }
 
 const defaultTrainingForm: TrainingFormState = {
-  databaseName: 'mushrooms',
+  databaseName: 'fruits',
   hiddenLayersNumber: 1,
-  activationFunctionName: 'logistic',
-  learningRate: 0.0001,
+  activationFunctionName: 'hyperbolicTan',
+  learningRate: 0.001,
   stopError: 0.001,
-  maxEpochs: 200,
+  maxEpochs: 2000,
 }
 
 export function TrainingForm({
@@ -42,8 +42,8 @@ export function TrainingForm({
           defaultValue={defaultTrainingForm.databaseName}
           disabled={training}
         >
-          <option value="mushrooms">Mushrooms</option>
           <option value="fruits">Fruits</option>
+          {/* <option value="mushrooms">Mushrooms</option> */}
         </select>
       </label>
 
@@ -67,9 +67,9 @@ export function TrainingForm({
           defaultValue={defaultTrainingForm.activationFunctionName}
           disabled={training}
         >
+          <option value="hiperbolicTan">Hyperbolic tan</option>
           <option value="logistic">Logistic</option>
           <option value="linear">Linear</option>
-          <option value="hiperbolicTan">Hyperbolic tan</option>
           <option value="netOverTwo">Net over two</option>
         </select>
       </label>
@@ -79,7 +79,7 @@ export function TrainingForm({
         <input
           type="number"
           min="0"
-          step="0.0001"
+          step="0.001"
           name="learningRate"
           defaultValue={defaultTrainingForm.learningRate}
           disabled={training}

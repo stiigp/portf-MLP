@@ -22,7 +22,7 @@ export class MlpLayoutEngine {
   compute(topology: LayerTopology[]): MlpLayoutState {
     const margin = {
       top: 92,
-      right: 250,
+      right: 74,
       bottom: 70,
       left: 74,
     }

@@ -3,7 +3,6 @@ import { ConnectionSvgView } from './ConnectionSvgView'
 import { MlpLayerSvgView } from './MlpLayerSvgView'
 import { MlpLayoutEngine } from './MlpLayoutEngine'
 import { OutputPanelSvgView } from './OutputPanelSvgView'
-import { TrainingProgressSvgView } from './TrainingProgressSvgView'
 import { connectionKey, createSvgElement } from './mlpSvgDom'
 import {
   VIEWBOX_HEIGHT,
@@ -20,6 +19,7 @@ type MlpSvgViewOptions = {
 
 const WEIGHT_PULSE_MAX_CONNECTIONS_PER_UPDATE = 30
 const WEIGHT_PULSE_MIN_DELTA = 0.001
+const SHOW_OUTPUT_PANEL = false
 
 type ConnectionWeightDelta = {
   key: string
@@ -40,7 +40,6 @@ export class MlpSvgView {
   private readonly connectionViews = new Map<string, ConnectionSvgView>()
   private readonly previousConnectionWeights = new Map<string, number>()
   private readonly outputPanel = new OutputPanelSvgView()
-  private readonly progressView = new TrainingProgressSvgView()
   private readonly options: MlpSvgViewOptions
 
   constructor(
@@ -61,7 +60,9 @@ export class MlpSvgView {
       this.connectionLabelGroup,
       this.overlayGroup,
     )
-    this.overlayGroup.append(this.outputPanel.group, this.progressView.group)
+    if (SHOW_OUTPUT_PANEL) {
+      this.overlayGroup.append(this.outputPanel.group)
+    }
   }
 
   update(snapshot: MlpSvgSnapshot): void {
@@ -70,8 +71,9 @@ export class MlpSvgView {
     this.svg.style.aspectRatio = `${layout.width} / ${layout.height}`
     this.updateConnections(snapshot, layout)
     this.updateLayers(snapshot, layout)
-    this.outputPanel.update(snapshot.outputs, layout)
-    this.progressView.update(snapshot, layout)
+    if (SHOW_OUTPUT_PANEL) {
+      this.outputPanel.update(snapshot.outputs, layout)
+    }
   }
 
   destroy(): void {
