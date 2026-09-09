@@ -69,7 +69,7 @@
   font-size: 13px;
 }
 
-.training-form input,
+.training-form input:not([type='radio']):not([type='range']),
 .training-form select {
   min-width: 0;
   min-height: 40px;
@@ -82,7 +82,7 @@
   font: 14px/1 var(--sans);
 }
 
-.training-form input:focus,
+.training-form input:not([type='radio']):not([type='range']):focus,
 .training-form select:focus {
   border-color: var(--accent);
   outline: 2px solid color-mix(in srgb, var(--accent) 25%, transparent);
@@ -91,6 +91,67 @@
 
 .training-form .actions {
   grid-column: 1 / -1;
+}
+
+.training-form fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.training-form legend {
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.radio-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.training-form .radio-option {
+  min-height: 28px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.training-form .radio-option input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.training-form .radio-option span {
+  color: var(--text-h);
+  font-size: 14px;
+}
+
+.range-field > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.range-field strong {
+  color: var(--text-h);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.training-form input[type='range'] {
+  width: 100%;
+  min-height: 40px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.training-form input[type='range']:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  outline-offset: 3px;
 }
 
 button {

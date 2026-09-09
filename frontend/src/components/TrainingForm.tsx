@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 export interface TrainingFormState {
   databaseName: string
   hiddenLayersNumber: number
@@ -27,6 +29,11 @@ export function TrainingForm({
   training,
   onStartTraining,
 }: TrainingFormProps) {
+  const [hiddenLayersNumber, setHiddenLayersNumber] = useState(
+    defaultTrainingForm.hiddenLayersNumber,
+  )
+  const [maxEpochs, setMaxEpochs] = useState(defaultTrainingForm.maxEpochs)
+
   return (
     <form
       className="training-form"
@@ -35,26 +42,44 @@ export function TrainingForm({
         onStartTraining(readTrainingForm(event.currentTarget))
       }}
     >
-      <label>
-        <span>Database</span>
-        <select
-          name="databaseName"
-          defaultValue={defaultTrainingForm.databaseName}
-          disabled={training}
-        >
-          <option value="fruits">Fruits</option>
-          {/* <option value="mushrooms">Mushrooms</option> */}
-        </select>
-      </label>
+      <fieldset className="radio-field">
+        <legend>Database</legend>
+        <label className="radio-option">
+          <input
+            type="radio"
+            name="databaseName"
+            value="fruits"
+            defaultChecked={defaultTrainingForm.databaseName === 'fruits'}
+            disabled={training}
+          />
+          <span>Fruits</span>
+        </label>
+        <label className="radio-option">
+          <input
+            type="radio"
+            name="databaseName"
+            value="mushrooms"
+            defaultChecked={defaultTrainingForm.databaseName === 'mushrooms'}
+            disabled={training}
+          />
+          <span>Mushrooms</span>
+        </label>
+      </fieldset>
 
-      <label>
-        <span>Hidden layers</span>
+      <label className="range-field">
+        <span>
+          Hidden layers <strong>{hiddenLayersNumber}</strong>
+        </span>
         <input
-          type="number"
+          type="range"
           min="1"
+          max="3"
           step="1"
           name="hiddenLayersNumber"
-          defaultValue={defaultTrainingForm.hiddenLayersNumber}
+          value={hiddenLayersNumber}
+          onChange={(event) =>
+            setHiddenLayersNumber(Number(event.currentTarget.value))
+          }
           disabled={training}
           required
         />
@@ -100,14 +125,18 @@ export function TrainingForm({
         />
       </label>
 
-      <label>
-        <span>Max epochs</span>
+      <label className="range-field">
+        <span>
+          Max epochs <strong>{maxEpochs}</strong>
+        </span>
         <input
-          type="number"
-          min="1"
-          step="1"
+          type="range"
+          min="100"
+          max="4000"
+          step="100"
           name="maxEpochs"
-          defaultValue={defaultTrainingForm.maxEpochs}
+          value={maxEpochs}
+          onChange={(event) => setMaxEpochs(Number(event.currentTarget.value))}
           disabled={training}
           required
         />

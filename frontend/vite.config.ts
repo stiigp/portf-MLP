@@ -13,6 +13,10 @@ export default defineConfig({
     },
     proxy: {
       '/api': apiTarget,
+      '/ws': {
+        target: apiTarget,
+        ws: true,
+      },
     },
     watch: {
       usePolling: process.env.VITE_USE_POLLING === 'true',
