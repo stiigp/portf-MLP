@@ -105,9 +105,9 @@ public class MLP {
             if (ultimos10Erros.size() < 10) {
                 ultimos10Erros.add(this.erroRede);
             } else {
-                if (MathUtil.desvioPadrao(ultimos10Erros) < erroParada * Math.pow(10, -1)) {
-                    System.out.println("Plateau!");
-                }
+                // if (MathUtil.desvioPadrao(ultimos10Erros) < erroParada * Math.pow(10, -1)) {
+                //     System.out.println("Plateau!");
+                // }
 
                 ultimos10Erros.remove(0);
                 ultimos10Erros.add(this.erroRede);
