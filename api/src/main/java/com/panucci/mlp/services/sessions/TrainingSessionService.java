@@ -7,6 +7,8 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,7 @@ import com.panucci.mlp.services.publishing.TrainingEventPublisher;
 @Service
 public class TrainingSessionService {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(TrainingSessionService.class);
     private static final String SESSION_STATUS_EVENT_TYPE = "SESSION_STATUS";
 
     private final ConcurrentHashMap<String, TrainingSession> sessions = new ConcurrentHashMap<>();
@@ -104,6 +107,7 @@ public class TrainingSessionService {
             );
         });
 
+        this.logStatusUpdate("markQueued", updated);
         return updated;
     }
 
@@ -127,6 +131,7 @@ public class TrainingSessionService {
         });
 
         if (updated != null && updated.status() == TrainingSessionStatus.QUEUED) {
+            this.logStatusUpdate("markQueuePosition", updated);
             this.publishStatus(updated);
         }
 
@@ -147,6 +152,7 @@ public class TrainingSessionService {
                 null
             )
         );
+        this.logStatusUpdate("markRunning", updated);
         this.publishStatus(updated);
     }
 
@@ -165,6 +171,7 @@ public class TrainingSessionService {
                 null
             )
         );
+        this.logStatusUpdate("markFinished", updated);
         this.publishStatus(updated);
     }
 
@@ -183,6 +190,7 @@ public class TrainingSessionService {
                 null
             )
         );
+        this.logStatusUpdate("markFailed", updated);
         this.publishStatus(updated);
     }
 
@@ -201,6 +209,7 @@ public class TrainingSessionService {
                 null
             )
         );
+        this.logStatusUpdate("markRejected", updated);
         this.publishStatus(updated);
     }
 
@@ -270,6 +279,22 @@ public class TrainingSessionService {
                 session.failureReason(),
                 session.queuePosition()
             )
+        );
+    }
+
+    private void logStatusUpdate(String operation, TrainingSession session) {
+        if (session == null) {
+            LOGGER.warn("{} did not update any training session", operation);
+            return;
+        }
+
+        LOGGER.info(
+            "{} updated training session: sessionId={}, status={}, queuePosition={}, failureReason={}",
+            operation,
+            session.sessionId(),
+            session.status(),
+            session.queuePosition(),
+            session.failureReason()
         );
     }
 }
