@@ -13,34 +13,20 @@ import com.panucci.mlp.services.factories.ReaderFactory;
 import com.panucci.mlp.services.publishing.TrainingEventPublisher;
 import com.panucci.mlp.services.sessions.SessionIdGenerator;
 import com.panucci.mlp.services.sessions.TrainingSessionService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
-import org.springframework.core.task.AsyncTaskExecutor;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import tech.tablesaw.api.Table;
-
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 class MlpTrainingServiceTest {
 
-    private final AsyncTaskExecutor sameThreadExecutor = new AsyncTaskExecutor() {
-        @Override
-        public void execute(Runnable task) {
-            task.run();
-        }
-
-        @Override
-        public Future<?> submit(Runnable task) {
-            task.run();
-            return CompletableFuture.completedFuture(null);
-        }
-    };
-
+    private ThreadPoolTaskExecutor trainingExecutor;
     private TrainingEventPublisher eventPublisher;
     private ReaderFactory readerFactory;
     private MlpFactory mlpFactory;
@@ -52,6 +38,13 @@ class MlpTrainingServiceTest {
 
     @BeforeEach
     void setUp() {
+        trainingExecutor = new ThreadPoolTaskExecutor();
+        trainingExecutor.setThreadNamePrefix("mlp-training-test-");
+        trainingExecutor.setCorePoolSize(1);
+        trainingExecutor.setMaxPoolSize(1);
+        trainingExecutor.setQueueCapacity(10);
+        trainingExecutor.initialize();
+
         eventPublisher = mock(TrainingEventPublisher.class);
         readerFactory = mock(ReaderFactory.class);
         mlpFactory = mock(MlpFactory.class);
@@ -71,11 +64,16 @@ class MlpTrainingServiceTest {
 
         service = new MlpTrainingService(
             eventPublisher,
-            sameThreadExecutor,
+            trainingExecutor,
             readerFactory,
             mlpFactory,
             trainingSessionService
         );
+    }
+
+    @AfterEach
+    void tearDown() {
+        trainingExecutor.shutdown();
     }
 
     @Test
@@ -95,8 +93,8 @@ class MlpTrainingServiceTest {
 
         service.startTraining(payload);
 
-        verify(readerFactory).create("fruits", "fruit_name");
-        verify(mlpFactory).create(
+        verify(readerFactory, timeout(1000)).create("fruits", "fruit_name");
+        verify(mlpFactory, timeout(1000)).create(
             eq(2),
             eq(ActivationFunction.logistica),
             eq(0.1),
@@ -117,7 +115,7 @@ class MlpTrainingServiceTest {
         service.startTraining(payload);
 
         InOrder inOrder = inOrder(reader, mlp);
-        inOrder.verify(reader).normaliza();
+        inOrder.verify(reader, timeout(1000)).normaliza();
         inOrder.verify(reader).oneHotEncode();
         inOrder.verify(reader).getTrainTable();
         inOrder.verify(mlp).train(trainTable, "fruit_name", 0.01, 5);
@@ -138,7 +136,8 @@ class MlpTrainingServiceTest {
 
         service.startTraining(payload);
 
-        verifyNoInteractions(readerFactory, mlpFactory);
+        verify(readerFactory, after(200).never()).create(anyString(), anyString());
+        verifyNoInteractions(mlpFactory);
     }
 
     @Test
@@ -156,7 +155,8 @@ class MlpTrainingServiceTest {
 
         service.startTraining(payload);
 
-        verifyNoInteractions(readerFactory, mlpFactory);
+        verify(readerFactory, after(200).never()).create(anyString(), anyString());
+        verifyNoInteractions(mlpFactory);
     }
 
     @Test
@@ -177,13 +177,14 @@ class MlpTrainingServiceTest {
 
         service.startTraining(payload);
 
+        verify(mlpFactory, timeout(1000)).create(anyInt(), any(), anyDouble(), any(), anyString(), any());
         TrainingListener listener = listenerCaptor.getValue();
         listener.onTrainingStartEvent(event);
         listener.onForwardPassEvent(event);
         listener.onWeightsUpdateEvent(event);
         listener.onTrainingEndEvent(event);
 
-        verify(eventPublisher, times(8)).publish(any());
+        verify(eventPublisher, timeout(1000).times(8)).publish(any());
         verify(eventPublisher, times(4)).publish(event);
     }
 
@@ -198,7 +199,7 @@ class MlpTrainingServiceTest {
         service.startTraining(payload);
 
         ArgumentCaptor<Table> tableCaptor = ArgumentCaptor.forClass(Table.class);
-        verify(mlp).train(tableCaptor.capture(), eq("fruit_name"), eq(0.01), eq(5));
+        verify(mlp, timeout(1000)).train(tableCaptor.capture(), eq("fruit_name"), eq(0.01), eq(5));
         assertSame(trainTable, tableCaptor.getValue());
     }
 

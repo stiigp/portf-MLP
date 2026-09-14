@@ -59,6 +59,7 @@ public class TrainingSessionService {
                 null,
                 now,
                 now.plus(this.createdSessionTtl),
+                null,
                 null
             );
 
@@ -98,11 +99,37 @@ public class TrainingSessionService {
                 null,
                 now,
                 null,
+                null,
                 null
             );
         });
 
-        this.publishStatus(updated);
+        return updated;
+    }
+
+    public TrainingSession markQueuePosition(String sessionId, Integer queuePosition) {
+        Instant now = Instant.now();
+        TrainingSession updated = this.sessions.computeIfPresent(sessionId, (id, session) -> {
+            if (session.status() != TrainingSessionStatus.QUEUED) {
+                return session;
+            }
+
+            return new TrainingSession(
+                session.sessionId(),
+                session.status(),
+                session.createdAt(),
+                session.startedAt(),
+                now,
+                session.expiresAt(),
+                session.failureReason(),
+                queuePosition
+            );
+        });
+
+        if (updated != null && updated.status() == TrainingSessionStatus.QUEUED) {
+            this.publishStatus(updated);
+        }
+
         return updated;
     }
 
@@ -115,6 +142,7 @@ public class TrainingSessionService {
                 session.createdAt(),
                 now,
                 now,
+                null,
                 null,
                 null
             )
@@ -133,6 +161,7 @@ public class TrainingSessionService {
                 session.startedAt(),
                 now,
                 now.plus(this.terminalSessionTtl),
+                null,
                 null
             )
         );
@@ -150,7 +179,8 @@ public class TrainingSessionService {
                 session.startedAt(),
                 now,
                 now.plus(this.terminalSessionTtl),
-                failureReason
+                failureReason,
+                null
             )
         );
         this.publishStatus(updated);
@@ -167,7 +197,8 @@ public class TrainingSessionService {
                 session.startedAt(),
                 now,
                 now.plus(this.terminalSessionTtl),
-                failureReason
+                failureReason,
+                null
             )
         );
         this.publishStatus(updated);
@@ -219,7 +250,8 @@ public class TrainingSessionService {
                     removed.startedAt(),
                     Instant.now(),
                     null,
-                    "Training exceeded max running duration"
+                    "Training exceeded max running duration",
+                    null
                 )
             );
         }
@@ -235,7 +267,8 @@ public class TrainingSessionService {
                 SESSION_STATUS_EVENT_TYPE,
                 session.sessionId(),
                 session.status(),
-                session.failureReason()
+                session.failureReason(),
+                session.queuePosition()
             )
         );
     }

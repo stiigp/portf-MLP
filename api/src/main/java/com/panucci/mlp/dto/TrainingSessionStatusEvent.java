@@ -6,6 +6,7 @@ public record TrainingSessionStatusEvent(
     String type,
     String sessionId,
     TrainingSessionStatus status,
-    String failureReason
+    String failureReason,
+    Integer queuePosition
 ) implements TrainingMessage {
 }

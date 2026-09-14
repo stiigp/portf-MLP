@@ -34,6 +34,7 @@ export interface TrainingSessionStatusEvent extends TrainingMessageBase {
   type: 'SESSION_STATUS'
   status: TrainingSessionStatus
   failureReason: string | null
+  queuePosition: number | null
 }
 
 export interface TrainingStartedEvent extends TrainingSampleEventBase {

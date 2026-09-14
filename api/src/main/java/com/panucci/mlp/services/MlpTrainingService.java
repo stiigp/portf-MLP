@@ -1,9 +1,11 @@
 package com.panucci.mlp.services;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Future;
 
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.core.task.TaskRejectedException;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import com.panucci.mlp.core.datastructures.MLP;
 import com.panucci.mlp.core.util.ActivationFunction;
@@ -22,14 +24,14 @@ import com.panucci.mlp.core.dataprocessing.Reader;
 public class MlpTrainingService {
 
     private final TrainingEventPublisher eventPublisher;
-    private final AsyncTaskExecutor trainingExecutor;
+    private final ThreadPoolTaskExecutor trainingExecutor;
     private final ReaderFactory readerFactory;
     private final MlpFactory mlpFactory;
     private final TrainingSessionService trainingSessionService;
 
     public MlpTrainingService(
         @Qualifier("webSocketTrainingEventPublisher") TrainingEventPublisher eventPublisher,
-        @Qualifier("trainingExecutor") AsyncTaskExecutor trainingExecutor,
+        @Qualifier("trainingExecutor") ThreadPoolTaskExecutor trainingExecutor,
         @Qualifier("defaultReaderFactory") ReaderFactory readerFactory,
         @Qualifier("defaultMlpFactory") MlpFactory mlpFactory,
         TrainingSessionService trainingSessionService
@@ -43,27 +45,53 @@ public class MlpTrainingService {
 
     public TrainingSession startTraining(StartTrainingPayload payload) {
         TrainingSession session = this.trainingSessionService.markQueued(payload.sessionId());
-        StartTrainingPayload sessionPayload = payload.withSessionId(session.sessionId());
+        String sessionId = session.sessionId();
+        StartTrainingPayload sessionPayload = payload.withSessionId(sessionId);
+        CountDownLatch queuePositionPublished = new CountDownLatch(1);
 
         try {
-            this.trainingSessionService.attachTask(
-                session.sessionId(),
-                this.trainingExecutor.submit(() -> {
-                    this.trainingSessionService.markRunning(session.sessionId());
+            Future<?> task = this.trainingExecutor.submit(() -> {
+                this.awaitQueuePositionPublication(queuePositionPublished);
+                this.trainingSessionService.markRunning(sessionId);
 
-                    try {
-                        this.runTraining(sessionPayload);
-                        this.trainingSessionService.markFinished(session.sessionId());
-                    } catch (Exception exception) {
-                        this.trainingSessionService.markFailed(session.sessionId(), exception.getMessage());
-                    }
-                })
-            );
+                try {
+                    this.runTraining(sessionPayload);
+                    this.trainingSessionService.markFinished(sessionId);
+                } catch (Exception exception) {
+                    this.trainingSessionService.markFailed(sessionId, exception.getMessage());
+                }
+            });
+
+            this.trainingSessionService.attachTask(sessionId, task);
+            session = this.trainingSessionService.markQueuePosition(sessionId, this.findQueuePosition(task));
         } catch (TaskRejectedException exception) {
-            this.trainingSessionService.markRejected(session.sessionId(), "Training queue is full");
+            this.trainingSessionService.markRejected(sessionId, "Training queue is full");
+        } finally {
+            queuePositionPublished.countDown();
         }
 
         return session;
+    }
+
+    private void awaitQueuePositionPublication(CountDownLatch queuePositionPublished) {
+        try {
+            queuePositionPublished.await();
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Training interrupted before start", exception);
+        }
+    }
+
+    private Integer findQueuePosition(Future<?> task) {
+        Object[] queuedTasks = this.trainingExecutor.getThreadPoolExecutor().getQueue().toArray();
+
+        for (int index = 0; index < queuedTasks.length; index++) {
+            if (queuedTasks[index] == task) {
+                return index + 1;
+            }
+        }
+
+        return null;        
     }
 
     private void runTraining(StartTrainingPayload payload) {

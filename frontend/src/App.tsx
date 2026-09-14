@@ -17,6 +17,7 @@ import type {
   TrainingEvent,
   TrainingFinishedEvent,
   TrainingProgressEvent,
+  TrainingSessionStatusEvent,
 } from './types/TrainingEvent'
 
 type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error'
@@ -56,6 +57,8 @@ function App() {
   const [outputs, setOutputs] = useState<OutputValueSnapshot[]>(initialOutputs)
   const [weights, setWeights] = useState<ConnectionSnapshot[]>(initialWeights)
   const [training, setTraining] = useState<boolean>(false)
+  const [sessionStatus, setSessionStatus] =
+    useState<TrainingSessionStatusEvent | null>(null)
   const [connectionState, setConnectionState] =
     useState<ConnectionState>('disconnected')
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
@@ -104,6 +107,7 @@ function App() {
         setTraining(true)
         break
       case 'SESSION_STATUS':
+        setSessionStatus(event)
         setTraining(isTrainingStatus(event.status))
         break
       case 'TRAINING_FINISHED':
@@ -142,6 +146,7 @@ function App() {
       setOutputs(initialOutputs)
       setWeights(initialWeights)
       setCurrentSessionId(session.sessionId)
+      setSessionStatus(null)
       setTraining(true)
       stompClient.startTraining({
         sessionId: session.sessionId,
@@ -191,7 +196,7 @@ function App() {
             </div>
             <div>
               <span>Training</span>
-              <strong>{training ? 'running' : 'idle'}</strong>
+              <strong>{formatTrainingStatus(training, sessionStatus)}</strong>
             </div>
             <div>
               <span>Epoch</span>
@@ -212,6 +217,17 @@ function App() {
       </section>
     </main>
   )
+}
+
+function formatTrainingStatus(
+  training: boolean,
+  sessionStatus: TrainingSessionStatusEvent | null,
+): string {
+  if (sessionStatus?.status === 'QUEUED' && sessionStatus.queuePosition != null) {
+    return `queued (#${sessionStatus.queuePosition})`
+  }
+
+  return sessionStatus?.status.toLowerCase() ?? (training ? 'running' : 'idle')
 }
 
 function formatNumber(value: number): string {

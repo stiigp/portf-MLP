@@ -9,6 +9,7 @@ public record TrainingSession(
     Instant startedAt,
     Instant updatedAt,
     Instant expiresAt,
-    String failureReason
+    String failureReason,
+    Integer queuePosition
 ) {
 }
