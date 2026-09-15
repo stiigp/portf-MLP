@@ -16,11 +16,11 @@ interface TrainingFormProps {
 }
 
 const datasetOptions = [
-  { value: 'fruits', label: 'Fruits' },
-  { value: 'mushrooms', label: 'Mushrooms' },
-  { value: 'iris', label: 'Iris' },
-  { value: 'raisins', label: 'Raisins' },
-  { value: 'bank_notes', label: 'Banknotes' },
+  { value: 'bank_notes', label: 'Banknotes (4 attributes, 2 classes)' },
+  { value: 'raisins', label: 'Raisins (7 attributes, 2 classes)' },
+  { value: 'mushrooms', label: 'Mushrooms (117 attributes, 2 classes)' },
+  { value: 'iris', label: 'Iris (4 attributes, 3 classes)' },
+  { value: 'fruits', label: 'Fruits (17 attributes, 20 classes)' },
 ]
 
 const defaultTrainingForm: TrainingFormState = {
