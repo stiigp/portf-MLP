@@ -17,7 +17,8 @@ type MlpSvgViewOptions = {
   onNeuronSelect?: (id: string) => void
 }
 
-const WEIGHT_PULSE_MAX_CONNECTIONS_PER_UPDATE = 30
+const WEIGHT_PULSE_MAX_CONNECTIONS_PER_UPDATE = 40
+const WEIGHT_PULSE_CONNECTION_RATIO_PER_UPDATE = 0.4
 const WEIGHT_PULSE_MIN_DELTA = 0.001
 const SHOW_OUTPUT_PANEL = false
 
@@ -187,10 +188,15 @@ export class MlpSvgView {
 
     this.prunePreviousConnectionWeights(activeConnectionKeys)
 
+    const pulsingConnectionCount = Math.min(
+      Math.ceil(weightDeltas.length * WEIGHT_PULSE_CONNECTION_RATIO_PER_UPDATE),
+      WEIGHT_PULSE_MAX_CONNECTIONS_PER_UPDATE,
+    )
+
     return new Set(
       weightDeltas
         .sort((left, right) => right.delta - left.delta)
-        .slice(0, WEIGHT_PULSE_MAX_CONNECTIONS_PER_UPDATE)
+        .slice(0, pulsingConnectionCount)
         .map((weightDelta) => weightDelta.key),
     )
   }

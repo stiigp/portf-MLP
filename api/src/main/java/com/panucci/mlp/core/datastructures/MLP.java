@@ -400,8 +400,12 @@ public class MLP {
             List<Integer> listaAtual = new ArrayList<>();
             Row linhaAtual = tabela.row(i);
 
-            for (int j = 0; j < linhaAtual.columnCount(); j ++)
-                listaAtual.add(linhaAtual.getInt(j));
+            for (int j = 0; j < linhaAtual.columnCount(); j ++) {
+                if (tabela.column(j).type() == ColumnType.LONG)
+                    listaAtual.add((int)linhaAtual.getLong(j));
+                else
+                    listaAtual.add(linhaAtual.getInt(j));
+            }
 
             retorno.add(listaAtual);
         }
@@ -421,6 +425,8 @@ public class MLP {
                     listaAtual.add(linhaAtual.getDouble(j));
                 else if (tabela.column(j).type() == ColumnType.FLOAT)
                     listaAtual.add((double)linhaAtual.getFloat(j));
+                else if (tabela.column(j).type() == ColumnType.LONG)
+                    listaAtual.add((double)linhaAtual.getLong(j));
                 else
                     listaAtual.add((double)linhaAtual.getInt(j));
             }

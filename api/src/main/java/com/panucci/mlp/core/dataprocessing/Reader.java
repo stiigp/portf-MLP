@@ -6,6 +6,7 @@ import tech.tablesaw.io.csv.CsvReadOptions;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.io.IOException;
@@ -16,10 +17,14 @@ public class Reader {
     private String nomeAtributoTarget;
     public static final HashMap<String, String> tableNameToTargetClass = new HashMap<>(Map.of(
         "mushrooms", "class",
-        "fruits", "fruit_name"
+        "fruits", "fruit_name",
+        "iris", "Species",
+        "raisins", "Class",
+        "bank_notes", "class"
     ));;
 
     public Reader(String nomeTabela, String nomeAtributoTarget) {
+        this.nomeAtributoTarget = nomeAtributoTarget;
         String resourcePath = "data/" + nomeTabela + ".csv";
 
         URL resource = Thread.currentThread()
@@ -31,34 +36,68 @@ public class Reader {
         }
 
         try {
-            this.tabela = Table.read().usingOptions(
-                CsvReadOptions.builder(resource)
-            );
+            this.tabela = Table.read().usingOptions(csvReadOptionsBuilder(resource, nomeTabela));
         } catch (IOException error) {
             System.out.println("IOException: " + error.getMessage());
         }
+
+        removeColunasIdentificadoras();
+        converteColunasTextoNumericas();
         
         trainTable = null;
         testTable = null;
-        this.nomeAtributoTarget = nomeAtributoTarget;
     }
 
+
+    private CsvReadOptions.Builder csvReadOptionsBuilder(URL resource, String nomeTabela) throws IOException {
+        CsvReadOptions.Builder builder = CsvReadOptions.builder(resource);
+
+        if (nomeTabela.equals("raisins"))
+            builder.locale(Locale.forLanguageTag("pt-BR"));
+
+        return builder;
+    }
     public void exibeTabela() {
         System.out.println(tabela.first(5));
     }
 
     public void normaliza() {
         for (Column<?> c: new ArrayList<>(tabela.columns())) {
+            if (c.name().equals(nomeAtributoTarget))
+                continue;
+
             if (c instanceof IntColumn) {
                 normaliza((IntColumn) c);
             } else if (c instanceof DoubleColumn) {
                 normaliza((DoubleColumn) c);
             } else if (c instanceof FloatColumn) {
                 normaliza((FloatColumn) c);
+            } else if (c instanceof LongColumn) {
+                normaliza((LongColumn) c);
             }
         }
     }
 
+    private void normaliza(LongColumn c) {
+        double max = c.max();
+        double min = c.min();
+
+        double range = max - min;
+
+        double[] colunaNovaArr = new double[c.size()];
+
+        for (int i = 0; i < c.size(); i++) {
+            double valor = c.getLong(i);
+            double normalizado = (valor - min) / range;
+
+            colunaNovaArr[i] = normalizado;
+        }
+
+        DoubleColumn colunaNova = DoubleColumn.create(c.name(), colunaNovaArr);
+
+        tabela.removeColumns(c.name());
+        tabela.addColumns(colunaNova);
+    }
     private void normaliza(IntColumn c) {
         double max = c.max();
         double min = c.min();
@@ -109,7 +148,9 @@ public class Reader {
     }
 
     public void oneHotEncode() {
-        for (String nomeColuna:tabela.columnNames()) {
+        encodeNumericTargetAsString();
+
+        for (String nomeColuna:new ArrayList<>(tabela.columnNames())) {
             if (tabela.column(nomeColuna) instanceof StringColumn)
                 oneHotEncode(nomeColuna);
             else if (tabela.column(nomeColuna) instanceof BooleanColumn)
@@ -129,6 +170,55 @@ public class Reader {
             trainTestSplit();
 
         return this.testTable;
+    }
+
+    private void removeColunasIdentificadoras() {
+        if (tabela.columnNames().contains("Id") && !nomeAtributoTarget.equals("Id"))
+            tabela.removeColumns("Id");
+    }
+
+    private void converteColunasTextoNumericas() {
+        for (Column<?> coluna:new ArrayList<>(tabela.columns())) {
+            if (!(coluna instanceof StringColumn) || coluna.name().equals(this.nomeAtributoTarget))
+                continue;
+
+            StringColumn colunaTexto = (StringColumn) coluna;
+            double[] valores = new double[colunaTexto.size()];
+
+            boolean colunaNumerica = true;
+            for (int i = 0; i < colunaTexto.size(); i++) {
+                try {
+                    valores[i] = parseDouble(colunaTexto.get(i));
+                } catch (NumberFormatException error) {
+                    colunaNumerica = false;
+                    break;
+                }
+            }
+
+            if (colunaNumerica) {
+                tabela.removeColumns(coluna.name());
+                tabela.addColumns(DoubleColumn.create(coluna.name(), valores));
+            }
+        }
+    }
+
+    private double parseDouble(String valor) {
+        return Double.parseDouble(valor.trim().replace(",", "."));
+    }
+
+    private void encodeNumericTargetAsString() {
+        if (tabela.column(nomeAtributoTarget) instanceof StringColumn)
+            return;
+
+        Column<?> colunaTarget = tabela.column(nomeAtributoTarget);
+        StringColumn colunaTargetTexto = StringColumn.create(nomeAtributoTarget);
+
+        for (int i = 0; i < colunaTarget.size(); i++) {
+            colunaTargetTexto.append(colunaTarget.getString(i));
+        }
+
+        tabela.removeColumns(nomeAtributoTarget);
+        tabela.addColumns(colunaTargetTexto);
     }
 
     private void trainTestSplit() {
@@ -179,6 +269,8 @@ public class Reader {
                 linhaAlterar.setDouble(nomeColuna, linhaNova.getDouble(nomeColuna));
             } else if (coluna.type() == ColumnType.INTEGER) {
                 linhaAlterar.setInt(nomeColuna, linhaNova.getInt(nomeColuna));
+            } else if (coluna.type() == ColumnType.LONG) {
+                linhaAlterar.setLong(nomeColuna, linhaNova.getLong(nomeColuna));
             }
         }
     }

@@ -15,8 +15,16 @@ interface TrainingFormProps {
   onStartTraining: (trainingForm: TrainingFormState) => void
 }
 
+const datasetOptions = [
+  { value: 'fruits', label: 'Fruits' },
+  { value: 'mushrooms', label: 'Mushrooms' },
+  { value: 'iris', label: 'Iris' },
+  { value: 'raisins', label: 'Raisins' },
+  { value: 'bank_notes', label: 'Banknotes' },
+]
+
 const defaultTrainingForm: TrainingFormState = {
-  databaseName: 'fruits',
+  databaseName: 'iris',
   hiddenLayersNumber: 1,
   activationFunctionName: 'hyperbolicTan',
   learningRate: 0.001,
@@ -44,26 +52,18 @@ export function TrainingForm({
     >
       <fieldset className="radio-field">
         <legend>Database</legend>
-        <label className="radio-option">
-          <input
-            type="radio"
-            name="databaseName"
-            value="fruits"
-            defaultChecked={defaultTrainingForm.databaseName === 'fruits'}
-            disabled={training}
-          />
-          <span>Fruits</span>
-        </label>
-        <label className="radio-option">
-          <input
-            type="radio"
-            name="databaseName"
-            value="mushrooms"
-            defaultChecked={defaultTrainingForm.databaseName === 'mushrooms'}
-            disabled={training}
-          />
-          <span>Mushrooms</span>
-        </label>
+        {datasetOptions.map((dataset) => (
+          <label className="radio-option" key={dataset.value}>
+            <input
+              type="radio"
+              name="databaseName"
+              value={dataset.value}
+              defaultChecked={defaultTrainingForm.databaseName === dataset.value}
+              disabled={training}
+            />
+            <span>{dataset.label}</span>
+          </label>
+        ))}
       </fieldset>
 
       <label className="range-field">
