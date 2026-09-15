@@ -16,7 +16,6 @@ public class Reader {
     private Table tabela, trainTable, testTable;
     private String nomeAtributoTarget;
     public static final HashMap<String, String> tableNameToTargetClass = new HashMap<>(Map.of(
-        "mushrooms", "class",
         "fruits", "fruit_name",
         "iris", "Species",
         "raisins", "Class",

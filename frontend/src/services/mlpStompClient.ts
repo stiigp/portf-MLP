@@ -123,10 +123,10 @@ export class MlpStompClient {
     })
   }
 
-  startMushroomsTraining(sessionId = '1'): void {
+  startIrisTraining(sessionId = '1'): void {
     this.startTraining({
       sessionId,
-      databaseName: 'mushrooms',
+      databaseName: 'iris',
       hiddenLayersNumber: 1,
       activationFunctionName: 'logistic',
       learningRate: 0.0001,
