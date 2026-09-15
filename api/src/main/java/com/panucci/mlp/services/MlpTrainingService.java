@@ -53,6 +53,7 @@ public class MlpTrainingService {
             Future<?> task = this.trainingExecutor.submit(() -> {
                 this.awaitQueuePositionPublication(queuePositionPublished);
                 this.trainingSessionService.markRunning(sessionId);
+                this.trainingSessionService.refreshQueuedSessionsPositions(this::findQueuePosition);
 
                 try {
                     this.runTraining(sessionPayload);

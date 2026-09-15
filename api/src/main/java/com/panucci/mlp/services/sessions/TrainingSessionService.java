@@ -6,6 +6,7 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
+import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -136,6 +137,15 @@ public class TrainingSessionService {
         }
 
         return updated;
+    }
+
+    public void refreshQueuedSessionsPositions(Function<Future<?>, Integer> queuePositionResolver) {
+        for (String sessionId : this.tasks.keySet()) {
+            Future<?> task = this.tasks.get(sessionId);
+            if (task != null) {
+                this.markQueuePosition(sessionId, queuePositionResolver.apply(task));
+            }
+        }
     }
 
     public void markRunning(String sessionId) {
