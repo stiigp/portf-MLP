@@ -131,7 +131,7 @@ export function TrainingForm({
         <input
           type="range"
           min="100"
-          max="4000"
+          max="50000"
           step="100"
           name="maxEpochs"
           value={maxEpochs}

@@ -230,6 +230,102 @@ button:disabled {
   min-width: 0;
 }
 
+.toast-stack {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 30;
+  display: flex;
+  width: min(360px, calc(100vw - 40px));
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.training-toast {
+  --toast-accent: #2563eb;
+  --toast-bg: #f8fbff;
+
+  position: relative;
+  box-sizing: border-box;
+  min-height: 92px;
+  border: 1px solid var(--toast-accent);
+  border-radius: 6px;
+  padding: 16px 42px 16px 16px;
+  color: #111827;
+  background: var(--toast-bg);
+  box-shadow: 0 12px 28px rgb(15 23 42 / 12%);
+  opacity: 1;
+  overflow-wrap: anywhere;
+  pointer-events: auto;
+  transition: opacity 220ms ease;
+}
+
+.training-toast[data-closing='true'] {
+  opacity: 0;
+}
+
+.training-toast[data-tone='danger'] {
+  --toast-accent: #dc2626;
+  --toast-bg: #fef2f2;
+}
+
+.training-toast[data-tone='success'] {
+  --toast-accent: #16a34a;
+  --toast-bg: #f0fdf4;
+}
+
+.training-toast[data-tone='warning'] {
+  --toast-accent: #ca8a04;
+  --toast-bg: #fefce8;
+}
+
+.training-toast[data-tone='orange'] {
+  --toast-accent: #ea580c;
+  --toast-bg: #fff7ed;
+}
+
+.training-toast[data-tone='info'] {
+  --toast-accent: #2563eb;
+  --toast-bg: #eff6ff;
+}
+
+.training-toast strong {
+  display: block;
+  padding-right: 4px;
+  color: #111827;
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.training-toast p {
+  margin-top: 8px;
+  color: #374151;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.toast-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  width: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  padding: 0;
+  color: #111827;
+  background: transparent;
+  font: 700 16px/1 var(--sans);
+}
+
+.toast-close:hover:not(:disabled) {
+  border-color: transparent;
+  background: rgb(17 24 39 / 8%);
+}
 @media (max-width: 1080px) {
   .training-layout {
     grid-template-columns: minmax(220px, 280px) minmax(420px, 1fr);
@@ -250,6 +346,11 @@ button:disabled {
 
   .status-grid > div:last-child {
     border-right: 0;
+  }
+
+  .toast-stack {
+    right: 20px;
+    bottom: 20px;
   }
 }
 

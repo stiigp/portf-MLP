@@ -7,6 +7,7 @@ import {
   type TrainingFormState,
 } from './components/TrainingForm'
 import { MlpVisualization } from './components/MlpVisualization'
+import { ToastStack, useToastStack } from './components/ToastStack'
 import { createTrainingSession } from './services/mlpSessionApi'
 import { stompClient } from './services/mlpStompClient'
 import type { StartTrainingPayload } from './types/StartTrainingPayload'
@@ -51,6 +52,8 @@ const defaultEventOptions: StartTrainingPayload['eventOptions'] = {
   weightsMinMillis: 250,
 }
 
+const toastDismissMs = 20000
+
 function App() {
   const [stats, setStats] = useState<TrainingStats | null>(null)
   const [topology, setTopology] = useState<LayerTopology[]>(initialTopology)
@@ -62,7 +65,10 @@ function App() {
   const [connectionState, setConnectionState] =
     useState<ConnectionState>('disconnected')
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
+  const { dismissToast, pushToast, toasts } = useToastStack()
   const trainingSubscriptionRef = useRef<StompSubscription | null>(null)
+  const lastQueueToastKeyRef = useRef<string | null>(null)
+  const lastFailureToastKeyRef = useRef<string | null>(null)
 
   const topologySummary = useMemo(() => {
     if (topology.length === 0) {
@@ -93,6 +99,12 @@ function App() {
         setOutputs(initialOutputs)
         setWeights(initialWeights)
         setTraining(true)
+        pushToast({
+          title: 'Training started',
+          message: 'The session left the queue and started processing data.',
+          tone: 'success',
+          autoDismissMs: toastDismissMs,
+        })
         break
       case 'TRAINING_PROGRESS':
         setStats(progressEventToStats(event))
@@ -109,11 +121,66 @@ function App() {
       case 'SESSION_STATUS':
         setSessionStatus(event)
         setTraining(isTrainingStatus(event.status))
+        notifySessionStatus(event)
         break
       case 'TRAINING_FINISHED':
         setStats(progressEventToStats(event))
         setTraining(false)
+        pushToast({
+          title: 'Training finished',
+          message: `Final network error: ${formatNumber(event.networkError)}.`,
+          tone: 'success',
+          autoDismissMs: toastDismissMs,
+        })
         break
+    }
+  }
+
+  function notifySessionStatus(event: TrainingSessionStatusEvent): void {
+    if (event.status === 'QUEUED') {
+      const queueKey = `${event.sessionId}:${event.queuePosition ?? 'unknown'}`
+
+      if (lastQueueToastKeyRef.current === queueKey) {
+        return
+      }
+
+      lastQueueToastKeyRef.current = queueKey
+      pushToast({
+        title:
+          event.queuePosition == null
+            ? 'Training queued'
+            : `Training queued #${event.queuePosition}`,
+        message:
+          event.queuePosition == null
+            ? 'The session entered the queue and is waiting to run.'
+            : `Your session is in queue position ${event.queuePosition}.`,
+        tone: 'warning',
+        autoDismissMs: toastDismissMs,
+      })
+      return
+    }
+
+    if (event.status === 'FAILED' || event.status === 'REJECTED') {
+      const failureKey = `${event.sessionId}:${event.status}:${
+        event.failureReason ?? 'unknown'
+      }`
+
+      if (lastFailureToastKeyRef.current === failureKey) {
+        return
+      }
+
+      lastFailureToastKeyRef.current = failureKey
+      pushToast({
+        title:
+          event.status === 'FAILED'
+            ? 'Training failed'
+            : 'Training rejected',
+        message:
+          event.failureReason ??
+          'The training session could not be completed.',
+        tone: 'danger',
+        autoDismissMs: toastDismissMs,
+      })
     }
   }
 
@@ -148,6 +215,8 @@ function App() {
       setCurrentSessionId(session.sessionId)
       setSessionStatus(null)
       setTraining(true)
+      lastQueueToastKeyRef.current = null
+      lastFailureToastKeyRef.current = null
       stompClient.startTraining({
         sessionId: session.sessionId,
         ...trainingForm,
@@ -156,6 +225,15 @@ function App() {
     } catch (error) {
       setTraining(false)
       setConnectionState('error')
+      pushToast({
+        title: 'Failed to start training',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'The training session could not be created or connected.',
+        tone: 'danger',
+        autoDismissMs: toastDismissMs,
+      })
       console.error(error)
     }
   }
@@ -215,6 +293,8 @@ function App() {
           </section>
         </aside>
       </section>
+
+      <ToastStack toasts={toasts} onDismiss={dismissToast} />
     </main>
   )
 }
