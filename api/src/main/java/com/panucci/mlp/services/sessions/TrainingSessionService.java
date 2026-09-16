@@ -169,8 +169,14 @@ public class TrainingSessionService {
     public void markFinished(String sessionId) {
         Instant now = Instant.now();
         this.tasks.remove(sessionId);
-        TrainingSession updated = this.sessions.computeIfPresent(sessionId, (id, session) ->
-            new TrainingSession(
+        boolean[] updatedStatus = {false};
+        TrainingSession updated = this.sessions.computeIfPresent(sessionId, (id, session) -> {
+            if (this.isTerminal(session)) {
+                return session;
+            }
+
+            updatedStatus[0] = true;
+            return new TrainingSession(
                 session.sessionId(),
                 TrainingSessionStatus.FINISHED,
                 session.createdAt(),
@@ -179,17 +185,26 @@ public class TrainingSessionService {
                 now.plus(this.terminalSessionTtl),
                 null,
                 null
-            )
-        );
-        this.logStatusUpdate("markFinished", updated);
-        this.publishStatus(updated);
+            );
+        });
+
+        if (updatedStatus[0]) {
+            this.logStatusUpdate("markFinished", updated);
+            this.publishStatus(updated);
+        }
     }
 
     public void markFailed(String sessionId, String failureReason) {
         Instant now = Instant.now();
         this.tasks.remove(sessionId);
-        TrainingSession updated = this.sessions.computeIfPresent(sessionId, (id, session) ->
-            new TrainingSession(
+        boolean[] updatedStatus = {false};
+        TrainingSession updated = this.sessions.computeIfPresent(sessionId, (id, session) -> {
+            if (this.isTerminal(session)) {
+                return session;
+            }
+
+            updatedStatus[0] = true;
+            return new TrainingSession(
                 session.sessionId(),
                 TrainingSessionStatus.FAILED,
                 session.createdAt(),
@@ -198,10 +213,13 @@ public class TrainingSessionService {
                 now.plus(this.terminalSessionTtl),
                 failureReason,
                 null
-            )
-        );
-        this.logStatusUpdate("markFailed", updated);
-        this.publishStatus(updated);
+            );
+        });
+
+        if (updatedStatus[0]) {
+            this.logStatusUpdate("markFailed", updated);
+            this.publishStatus(updated);
+        }
     }
 
     public void markRejected(String sessionId, String failureReason) {
@@ -221,6 +239,40 @@ public class TrainingSessionService {
         );
         this.logStatusUpdate("markRejected", updated);
         this.publishStatus(updated);
+    }
+
+    public boolean cancelTraining(String sessionId, String failureReason) {
+        Instant now = Instant.now();
+        Future<?> task = this.tasks.remove(sessionId);
+        if (task != null) {
+            task.cancel(true);
+        }
+
+        boolean[] cancelled = {false};
+        TrainingSession updated = this.sessions.computeIfPresent(sessionId, (id, session) -> {
+            if (session.status() != TrainingSessionStatus.QUEUED && session.status() != TrainingSessionStatus.RUNNING) {
+                return session;
+            }
+
+            cancelled[0] = true;
+            return new TrainingSession(
+                session.sessionId(),
+                TrainingSessionStatus.FAILED,
+                session.createdAt(),
+                session.startedAt(),
+                now,
+                now.plus(this.terminalSessionTtl),
+                failureReason,
+                null
+            );
+        });
+
+        if (cancelled[0]) {
+            this.logStatusUpdate("cancelTraining", updated);
+            this.publishStatus(updated);
+        }
+
+        return cancelled[0];
     }
 
     @Scheduled(fixedDelayString = "${mlp.training.session-cleanup-interval-ms:30000}")

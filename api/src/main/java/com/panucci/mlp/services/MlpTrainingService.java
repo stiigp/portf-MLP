@@ -59,6 +59,10 @@ public class MlpTrainingService {
                     this.runTraining(sessionPayload);
                     this.trainingSessionService.markFinished(sessionId);
                 } catch (Exception exception) {
+                    if (Thread.currentThread().isInterrupted()) {
+                        return;
+                    }
+
                     this.trainingSessionService.markFailed(sessionId, exception.getMessage());
                 }
             });
@@ -72,6 +76,17 @@ public class MlpTrainingService {
         }
 
         return session;
+    }
+
+    public void cancelTraining(String sessionId) {
+        boolean cancelled = this.trainingSessionService.cancelTraining(
+            sessionId,
+            "Training cancelled because the client disconnected"
+        );
+
+        if (cancelled) {
+            this.trainingSessionService.refreshQueuedSessionsPositions(this::findQueuePosition);
+        }
     }
 
     private void awaitQueuePositionPublication(CountDownLatch queuePositionPublished) {
