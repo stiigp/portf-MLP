@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import com.panucci.mlp.core.datastructures.MLP;
 import com.panucci.mlp.dto.TrainingSessionStatusEvent;
 import com.panucci.mlp.services.publishing.TrainingEventPublisher;
 
@@ -166,7 +167,7 @@ public class TrainingSessionService {
         this.publishStatus(updated);
     }
 
-    public void markFinished(String sessionId) {
+    public void markFinished(String sessionId, MLP trainedModel) {
         Instant now = Instant.now();
         this.tasks.remove(sessionId);
         boolean[] updatedStatus = {false};
@@ -184,7 +185,8 @@ public class TrainingSessionService {
                 now,
                 now.plus(this.terminalSessionTtl),
                 null,
-                null
+                null,
+                trainedModel
             );
         });
 
@@ -192,6 +194,10 @@ public class TrainingSessionService {
             this.logStatusUpdate("markFinished", updated);
             this.publishStatus(updated);
         }
+    }
+
+    public void markFinished(String sessionId) {
+        this.markFinished(sessionId, null);
     }
 
     public void markFailed(String sessionId, String failureReason) {

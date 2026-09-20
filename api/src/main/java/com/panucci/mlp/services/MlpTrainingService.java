@@ -56,8 +56,8 @@ public class MlpTrainingService {
                 this.trainingSessionService.refreshQueuedSessionsPositions(this::findQueuePosition);
 
                 try {
-                    this.runTraining(sessionPayload);
-                    this.trainingSessionService.markFinished(sessionId);
+                    MLP trainedModel = this.runTraining(sessionPayload);
+                    this.trainingSessionService.markFinished(sessionId, trainedModel);
                 } catch (Exception exception) {
                     if (Thread.currentThread().isInterrupted()) {
                         return;
@@ -110,7 +110,7 @@ public class MlpTrainingService {
         return null;        
     }
 
-    private void runTraining(StartTrainingPayload payload) {
+    private MLP runTraining(StartTrainingPayload payload) {
         ActivationFunction resolvedActivationFunction = this.resolveActivationFunction(payload.activationFunctionName());
         if (resolvedActivationFunction == null) {
             throw new IllegalArgumentException("Invalid activation function: " + payload.activationFunctionName());
@@ -142,6 +142,8 @@ public class MlpTrainingService {
             payload.stopError(),
             payload.maxEpochs()
         );
+
+        return mlp;
     }
 
     private ActivationFunction resolveActivationFunction(String activationFunctionName) {
