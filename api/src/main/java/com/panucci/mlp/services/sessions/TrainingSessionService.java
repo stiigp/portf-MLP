@@ -167,7 +167,7 @@ public class TrainingSessionService {
         this.publishStatus(updated);
     }
 
-    public void markFinished(String sessionId, MLP trainedModel) {
+    public void markFinished(String sessionId, MLP trainedModel, TestDataset testDataset) {
         Instant now = Instant.now();
         this.tasks.remove(sessionId);
         boolean[] updatedStatus = {false};
@@ -186,7 +186,8 @@ public class TrainingSessionService {
                 now.plus(this.terminalSessionTtl),
                 null,
                 null,
-                trainedModel
+                trainedModel,
+                testDataset
             );
         });
 
@@ -196,8 +197,12 @@ public class TrainingSessionService {
         }
     }
 
+    public void markFinished(String sessionId, MLP trainedModel) {
+        this.markFinished(sessionId, trainedModel, null);
+    }
+
     public void markFinished(String sessionId) {
-        this.markFinished(sessionId, null);
+        this.markFinished(sessionId, null, null);
     }
 
     public void markFailed(String sessionId, String failureReason) {

@@ -7,11 +7,15 @@ import com.panucci.mlp.dto.ConnectionSnapshot;
 import com.panucci.mlp.dto.LayerTopology;
 import com.panucci.mlp.dto.OutputValueSnapshot;
 import com.panucci.mlp.dto.OutputValuesEvent;
+import com.panucci.mlp.dto.TestFinishedEvent;
+import com.panucci.mlp.dto.TestProgressEvent;
+import com.panucci.mlp.dto.TestStartedEvent;
 import com.panucci.mlp.dto.TrainingEventOptions;
 import com.panucci.mlp.dto.TrainingFinishedEvent;
 import com.panucci.mlp.dto.TrainingProgressEvent;
 import com.panucci.mlp.dto.TrainingStartedEvent;
 import com.panucci.mlp.dto.WeightsUpdateEvent;
+import com.panucci.mlp.listeners.TestListener;
 import com.panucci.mlp.listeners.TrainingListener;
 
 import tech.tablesaw.api.ColumnType;
@@ -33,21 +37,46 @@ public class MLP {
     protected double erroRede;
 
     protected int nCamadasOcultas, nPerceptronsPorCamadaOculta;
-    protected TrainingListener listener;
+    protected TrainingListener trainingListener;
+    protected TestListener testListener;
     protected String sessionId;
     protected TrainingEventOptions eventOptions;
     private long lastProgressEventMillis;
     private long lastWeightsEventMillis;
 
-    public MLP(int nCamadasOcultas, ActivationFunction activationFunction, double taxaDeAprendizado, TrainingListener listener, String sessionId, TrainingEventOptions eventOptions) {
+    public MLP(int nCamadasOcultas, ActivationFunction activationFunction, double taxaDeAprendizado, TrainingListener trainingListener, String sessionId, TrainingEventOptions eventOptions, TestListener testListener) {
         this.nCamadasOcultas = nCamadasOcultas;
         this.activationFunction = activationFunction;
         this.camadasOcultas = new ArrayList<>();
         this.taxaDeAprendizado = taxaDeAprendizado;
         this.erroRede = Double.MAX_VALUE;
-        this.listener = listener;
+        this.trainingListener = trainingListener;
+        this.testListener = testListener == null ? new TestListener() { } : testListener;
         this.sessionId = sessionId;
         this.eventOptions = TrainingEventOptions.normalize(eventOptions);
+    }
+
+    public MLP(
+        int nCamadasOcultas,
+        ActivationFunction activationFunction,
+        double taxaDeAprendizado,
+        TrainingListener trainingListener,
+        String sessionId,
+        TrainingEventOptions eventOptions
+    ) {
+        this(
+            nCamadasOcultas,
+            activationFunction,
+            taxaDeAprendizado,
+            trainingListener,
+            sessionId,
+            eventOptions,
+            null
+        );
+    }
+
+    public void setTestListener(TestListener testListener) {
+        this.testListener = testListener == null ? new TestListener() { } : testListener;
     }
 
     public void train(Table trainTable, String nomeAtributoTarget, double erroParada, int maxEpochs) {
@@ -123,6 +152,14 @@ public class MLP {
     }
 
     public double test(Table testTable, String nomeAtributoTarget) {
+        return test(testTable, nomeAtributoTarget, null);
+    }
+
+    public double test(
+        Table testTable,
+        String nomeAtributoTarget,
+        String testSessionId
+    ) {
         List<String> colunasTarget = retornaNomesDasColunasTarget(nomeAtributoTarget, testTable);
         this.confusionMatrix = new ConfusionMatrix(colunasTarget);
 
@@ -133,47 +170,99 @@ public class MLP {
         List<List<Integer>> saidas = converteTableEmListaDeListasDeInteger(testTableSaidas);
 
         if (this.activationFunction == ActivationFunction.tangenteHiperbolica) {
-            // troca os 0's da saída esperada por -1
-            for (List<Integer> saida:saidas) {
+            for (List<Integer> saida : saidas) {
                 for (int i = 0; i < saida.size(); i++) {
-                    int valorSaida = saida.get(i);
-
-                    if (valorSaida == 0)
+                    if (saida.get(i) == 0) {
                         saida.set(i, -1);
+                    }
                 }
             }
         }
 
-        return testeMultiplo(entradas, saidas);
+        if (testSessionId != null) {
+            emitTestStarted(testSessionId, colunasTarget, entradas.size());
+        }
+
+        return testeMultiplo(entradas, saidas, testSessionId);
     }
 
     public double testeMultiplo(List<List<Double>> entradasTeste, List<List<Integer>> saidasTeste) {
+        return testeMultiplo(entradasTeste, saidasTeste, null);
+    }
+
+    private double testeMultiplo(
+        List<List<Double>> entradasTeste,
+        List<List<Integer>> saidasTeste,
+        String testSessionId
+    ) {
         int nAcertos = 0;
-        for (int i = 0; i < entradasTeste.size(); i ++) {
-            if (testeUnico(entradasTeste.get(i), saidasTeste.get(i)))
-                nAcertos ++;
+
+        for (int i = 0; i < entradasTeste.size(); i++) {
+            TestSampleResult result = avaliaAmostraDeTeste(
+                entradasTeste.get(i),
+                saidasTeste.get(i)
+            );
+            imprimeResultadoDoTeste(result);
+
+            if (result.correct()) {
+                nAcertos++;
+            }
+
+            if (testSessionId != null) {
+                emitTestProgress(
+                    testSessionId,
+                    i,
+                    result.predictedClassIndex(),
+                    result.expectedClassIndex()
+                );
+            }
         }
 
-        // retorna a taxa de acerto
-        return (double) nAcertos/entradasTeste.size();
+        double accuracy = entradasTeste.isEmpty() ? 0.0 : (double) nAcertos / entradasTeste.size();
+        if (testSessionId != null) {
+            emitTestFinished(testSessionId, entradasTeste.size(), nAcertos);
+        }
+
+        return accuracy;
     }
 
     public boolean testeUnico(List<Double> entradaTeste, List<Integer> saidaTeste) {
+        TestSampleResult result = avaliaAmostraDeTeste(entradaTeste, saidaTeste);
+        imprimeResultadoDoTeste(result);
+        return result.correct();
+    }
+
+    private TestSampleResult avaliaAmostraDeTeste(
+        List<Double> entradaTeste,
+        List<Integer> saidaTeste
+    ) {
         atualizaEntradasAndSaidasEsperadas(entradaTeste, saidaTeste);
 
-        int vencedor = retornaNeuronioVencedor();
-        int vencedorEsperado = retornaVencedorEsperado();
+        int predictedClassIndex = retornaNeuronioVencedor();
+        int expectedClassIndex = retornaVencedorEsperado();
+        this.confusionMatrix.addResult(predictedClassIndex, expectedClassIndex);
 
-        System.out.printf("Neurônio vencedor: %d\nVencedor esperado: %d\n", vencedor, vencedorEsperado);
-        this.confusionMatrix.addResult(vencedor, vencedorEsperado);
+        return new TestSampleResult(
+            predictedClassIndex,
+            expectedClassIndex,
+            predictedClassIndex == expectedClassIndex
+        );
+    }
 
-        if (saidasEsperadas.get(vencedor) == 1) {
-            System.out.println("Acerto!");
-            return true;
-        }
+    private void imprimeResultadoDoTeste(TestSampleResult result) {
+        System.out.printf(
+            "Neurônio vencedor: %d\nVencedor esperado: %d\n",
+            result.predictedClassIndex(),
+            result.expectedClassIndex()
+        );
+        System.out.println(result.correct() ? "Acerto!" : "Erro!");
+    }
 
-        System.out.println("Erro!");
-        return false;
+    private record TestSampleResult(
+        int predictedClassIndex,
+        int expectedClassIndex,
+        boolean correct
+    ) {
     }
 
     protected void backPropagation() {
@@ -491,9 +580,62 @@ public class MLP {
         this.confusionMatrix.print();
     }
 
+    private void emitTestStarted(
+        String testSessionId,
+        List<String> classLabels,
+        int totalSamples
+    ) {
+        this.testListener.onTestStartEvent(
+            new TestStartedEvent(
+                "TEST_STARTED",
+                testSessionId,
+                this.sessionId,
+                totalSamples,
+                List.copyOf(classLabels)
+            )
+        );
+    }
+
+    private void emitTestProgress(
+        String testSessionId,
+        int sampleIndex,
+        int predictedClassIndex,
+        int expectedClassIndex
+    ) {
+        this.testListener.onTestProgressEvent(
+            new TestProgressEvent(
+                "TEST_PROGRESS",
+                testSessionId,
+                sampleIndex,
+                predictedClassIndex,
+                expectedClassIndex,
+                this.confusionMatrix.accuracy(),
+                this.confusionMatrix.macroPrecision(),
+                this.confusionMatrix.macroF1Score()
+            )
+        );
+    }
+
+    private void emitTestFinished(
+        String testSessionId,
+        int processedSamples,
+        int correctPredictions
+    ) {
+        this.testListener.onTestEndEvent(
+            new TestFinishedEvent(
+                "TEST_FINISHED",
+                testSessionId,
+                processedSamples,
+                correctPredictions,
+                this.confusionMatrix.accuracy(),
+                this.confusionMatrix.macroPrecision(),
+                this.confusionMatrix.macroF1Score()
+            )
+        );
+    }
     // auxiliary snapshot functions
     private void emitTrainingStarted(int epoch, int sampleIndex) {
-        this.listener.onTrainingStartEvent(
+        this.trainingListener.onTrainingStartEvent(
             new TrainingStartedEvent(
                 "TRAINING_STARTED",
                 this.sessionId,
@@ -509,7 +651,7 @@ public class MLP {
             return;
         }
 
-        this.listener.onForwardPassEvent(
+        this.trainingListener.onForwardPassEvent(
             new OutputValuesEvent(
                 "OUTPUT_VALUES",
                 this.sessionId,
@@ -530,7 +672,7 @@ public class MLP {
         }
 
         this.lastProgressEventMillis = now;
-        this.listener.onForwardPassEvent(
+        this.trainingListener.onForwardPassEvent(
             new TrainingProgressEvent(
                 "TRAINING_PROGRESS",
                 this.sessionId,
@@ -551,7 +693,7 @@ public class MLP {
         }
 
         this.lastWeightsEventMillis = now;
-        this.listener.onWeightsUpdateEvent(
+        this.trainingListener.onWeightsUpdateEvent(
             new WeightsUpdateEvent(
                 "WEIGHTS_UPDATE",
                 this.sessionId,
@@ -563,7 +705,7 @@ public class MLP {
     }
 
     private void emitTrainingFinished(int epoch, int sampleIndex) {
-        this.listener.onTrainingEndEvent(
+        this.trainingListener.onTrainingEndEvent(
             new TrainingFinishedEvent(
                 "TRAINING_FINISHED",
                 this.sessionId,

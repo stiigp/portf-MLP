@@ -1,6 +1,7 @@
 package com.panucci.mlp.controller;
 
 import com.panucci.mlp.dto.StartTrainingPayload;
+import com.panucci.mlp.services.MlpTestingService;
 import com.panucci.mlp.services.MlpTrainingService;
 import com.panucci.mlp.services.sessions.TrainingSession;
 
@@ -17,10 +18,15 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 public class MlpSocketController {
 
     private final MlpTrainingService trainingService;
+    private final MlpTestingService testingService;
     private final ConcurrentHashMap<String, String> simpSessionToTrainingSessionHashMap = new ConcurrentHashMap<>();
- 
-    public MlpSocketController(MlpTrainingService trainingService) {
+
+    public MlpSocketController(
+        MlpTrainingService trainingService,
+        MlpTestingService testingService
+    ) {
         this.trainingService = trainingService;
+        this.testingService = testingService;
     }
 
     @MessageMapping("/mlp/start")
@@ -28,7 +34,6 @@ public class MlpSocketController {
         @Payload StartTrainingPayload payload,
         SimpMessageHeaderAccessor headers
     ) {
-
         String simpSessionId = headers.getSessionId();
 
         TrainingSession session = this.trainingService.startTraining(payload);
@@ -40,7 +45,12 @@ public class MlpSocketController {
         );
     }
 
-    @MessageMapping("/mlp/{sessionId}/pause")                   
+    @MessageMapping("/mlp/tests/{testSessionId}/start")
+    public void startTest(@DestinationVariable String testSessionId) {
+        this.testingService.startTesting(testSessionId);
+    }
+
+    @MessageMapping("/mlp/{sessionId}/pause")
     public void pause(@DestinationVariable String sessionId) {
         System.out.println(
                 "pausing yet to be implemented, sessionId: " + sessionId

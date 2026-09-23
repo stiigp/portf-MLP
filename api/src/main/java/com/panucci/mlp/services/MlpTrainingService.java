@@ -16,6 +16,7 @@ import com.panucci.mlp.listeners.TrainingListener;
 import com.panucci.mlp.services.factories.MlpFactory;
 import com.panucci.mlp.services.factories.ReaderFactory;
 import com.panucci.mlp.services.publishing.TrainingEventPublisher;
+import com.panucci.mlp.services.sessions.TestDataset;
 import com.panucci.mlp.services.sessions.TrainingSession;
 import com.panucci.mlp.services.sessions.TrainingSessionService;
 import com.panucci.mlp.core.dataprocessing.Reader;
@@ -56,8 +57,12 @@ public class MlpTrainingService {
                 this.trainingSessionService.refreshQueuedSessionsPositions(this::findQueuePosition);
 
                 try {
-                    MLP trainedModel = this.runTraining(sessionPayload);
-                    this.trainingSessionService.markFinished(sessionId, trainedModel);
+                    TrainingResult result = this.runTraining(sessionPayload);
+                    this.trainingSessionService.markFinished(
+                        sessionId,
+                        result.trainedModel(),
+                        result.testDataset()
+                    );
                 } catch (Exception exception) {
                     if (Thread.currentThread().isInterrupted()) {
                         return;
@@ -110,7 +115,7 @@ public class MlpTrainingService {
         return null;        
     }
 
-    private MLP runTraining(StartTrainingPayload payload) {
+    private TrainingResult runTraining(StartTrainingPayload payload) {
         ActivationFunction resolvedActivationFunction = this.resolveActivationFunction(payload.activationFunctionName());
         if (resolvedActivationFunction == null) {
             throw new IllegalArgumentException("Invalid activation function: " + payload.activationFunctionName());
@@ -143,7 +148,17 @@ public class MlpTrainingService {
             payload.maxEpochs()
         );
 
-        return mlp;
+        return new TrainingResult(
+            mlp,
+            new TestDataset(
+                payload.databaseName(),
+                targetClassName,
+                reader.getTestTable()
+            )
+        );
+    }
+
+    private record TrainingResult(MLP trainedModel, TestDataset testDataset) {
     }
 
     private ActivationFunction resolveActivationFunction(String activationFunctionName) {

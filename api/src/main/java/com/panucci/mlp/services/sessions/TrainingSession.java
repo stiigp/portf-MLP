@@ -13,7 +13,8 @@ public record TrainingSession(
     Instant expiresAt,
     String failureReason,
     Integer queuePosition,
-    MLP trainedModel
+    MLP trainedModel,
+    TestDataset testDataset
 ) {
     public TrainingSession(
         String sessionId,
@@ -25,6 +26,42 @@ public record TrainingSession(
         String failureReason,
         Integer queuePosition
     ) {
-        this(sessionId, status, createdAt, startedAt, updatedAt, expiresAt, failureReason, queuePosition, null);
+        this(
+            sessionId,
+            status,
+            createdAt,
+            startedAt,
+            updatedAt,
+            expiresAt,
+            failureReason,
+            queuePosition,
+            null,
+            null
+        );
+    }
+
+    public TrainingSession(
+        String sessionId,
+        TrainingSessionStatus status,
+        Instant createdAt,
+        Instant startedAt,
+        Instant updatedAt,
+        Instant expiresAt,
+        String failureReason,
+        Integer queuePosition,
+        MLP trainedModel
+    ) {
+        this(
+            sessionId,
+            status,
+            createdAt,
+            startedAt,
+            updatedAt,
+            expiresAt,
+            failureReason,
+            queuePosition,
+            trainedModel,
+            null
+        );
     }
 }
