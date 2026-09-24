@@ -7,6 +7,7 @@ import {
   type TrainingFormState,
 } from './components/TrainingForm'
 import { MlpVisualization } from './components/MlpVisualization'
+import { PhaseNavigationButton } from './components/PhaseNavigationButton'
 import { ToastStack, useToastStack } from './components/ToastStack'
 import { createTrainingSession } from './services/mlpSessionApi'
 import { stompClient } from './services/mlpStompClient'
@@ -22,6 +23,7 @@ import type {
 } from './types/TrainingEvent'
 
 type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error'
+type Phase = 'training' | 'testing'
 
 type TrainingStats = Pick<
   TrainingProgressEvent | TrainingFinishedEvent,
@@ -54,6 +56,9 @@ const defaultEventOptions: StartTrainingPayload['eventOptions'] = {
 
 const toastDismissMs = 20000
 
+const getPhaseFromPathname = (): Phase =>
+  window.location.pathname === '/testing' ? 'testing' : 'training'
+
 function App() {
   const [stats, setStats] = useState<TrainingStats | null>(null)
   const [topology, setTopology] = useState<LayerTopology[]>(initialTopology)
@@ -65,6 +70,8 @@ function App() {
   const [connectionState, setConnectionState] =
     useState<ConnectionState>('disconnected')
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
+  const [phase, setPhase] = useState<Phase>(getPhaseFromPathname)
+  const [testingAvailable, setTestingAvailable] = useState(false)
   const { dismissToast, pushToast, toasts } = useToastStack()
   const trainingSubscriptionRef = useRef<StompSubscription | null>(null)
   const lastQueueToastKeyRef = useRef<string | null>(null)
@@ -91,6 +98,14 @@ function App() {
     }
   }, [])
 
+  useEffect(() => {
+    const handlePopState = () => {
+      setPhase(getPhaseFromPathname())
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
   function handleTrainingEvent(event: TrainingEvent): void {
     switch (event.type) {
       case 'TRAINING_STARTED':
@@ -99,6 +114,7 @@ function App() {
         setOutputs(initialOutputs)
         setWeights(initialWeights)
         setTraining(true)
+        setTestingAvailable(false)
         pushToast({
           title: 'Training started',
           message: 'The session left the queue and started processing data.',
@@ -121,11 +137,17 @@ function App() {
       case 'SESSION_STATUS':
         setSessionStatus(event)
         setTraining(isTrainingStatus(event.status))
+        if (event.status === 'FINISHED') {
+          setTestingAvailable(true)
+        } else if (isTrainingStatus(event.status)) {
+          setTestingAvailable(false)
+        }
         notifySessionStatus(event)
         break
       case 'TRAINING_FINISHED':
         setStats(progressEventToStats(event))
         setTraining(false)
+        setTestingAvailable(true)
         pushToast({
           title: 'Training finished',
           message: `Final network error: ${formatNumber(event.networkError)}.`,
@@ -215,6 +237,7 @@ function App() {
       setCurrentSessionId(session.sessionId)
       setSessionStatus(null)
       setTraining(true)
+      setTestingAvailable(false)
       lastQueueToastKeyRef.current = null
       lastFailureToastKeyRef.current = null
       stompClient.startTraining({
@@ -240,7 +263,8 @@ function App() {
 
   return (
     <main className="app-shell">
-      <section className="training-layout">
+      {phase === 'training' ? (
+        <section className="training-layout">
         <aside className="controls-panel" aria-labelledby="training-title">
           <div className="heading-group">
             <p className="eyebrow">MLP from scratch + websocket monitor</p>
@@ -291,14 +315,36 @@ function App() {
               <strong>{topologySummary}</strong>
             </div>
           </section>
+          <PhaseNavigationButton
+            disabled={!testingAvailable}
+            label="Testing Phase"
+            onClick={() => navigateToPhase('testing', setPhase)}
+          />
         </aside>
-      </section>
+        </section>
+      ) : (
+        <section className="testing-layout" aria-label="Testing phase">
+          <PhaseNavigationButton
+            label="Training Phase"
+            onClick={() => navigateToPhase('training', setPhase)}
+          />
+        </section>
+      )}
 
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
     </main>
   )
 }
 
+function navigateToPhase(
+  phase: Phase,
+  setPhase: (phase: Phase) => void,
+): void {
+  const pathname = phase === 'testing' ? '/testing' : '/'
+
+  window.history.pushState(null, '', pathname)
+  setPhase(phase)
+}
 function formatTrainingStatus(
   training: boolean,
   sessionStatus: TrainingSessionStatusEvent | null,
