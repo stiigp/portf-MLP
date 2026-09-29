@@ -194,9 +194,60 @@ button:disabled {
 }
 
 .testing-layout {
+  position: relative;
   min-height: calc(100svh - 48px);
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 24px;
+}
+
+.test-panel {
+  width: min(100%, 420px);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.test-panel .actions {
+  margin-top: 0;
+}
+
+.testing-layout > .phase-navigation-button {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  margin-top: 0;
+}
+
+.test-session-details {
+  display: grid;
+  border: 1px solid var(--border);
+}
+
+.test-session-details > div {
+  min-width: 0;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.test-session-details > div:last-child {
+  border-bottom: 0;
+}
+
+.test-session-details span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.test-session-details strong {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--text-h);
+  font-size: 18px;
+  font-weight: 700;
 }
 
 .testing-layout .status-grid {
@@ -382,7 +433,7 @@ button:disabled {
 .testing-layout {
   min-height: calc(100svh - 48px);
   display: flex;
-  align-items: flex-end;
+  align-items: stretch;
 }
 
 .testing-layout .phase-navigation-button {
@@ -416,6 +467,18 @@ button:disabled {
   .status-grid,
   .details {
     grid-template-columns: 1fr;
+  }
+
+  .testing-layout {
+    flex-direction: column;
+  }
+
+  .test-panel {
+    width: 100%;
+  }
+
+  .testing-layout > .phase-navigation-button {
+    position: static;
   }
 
   .status-grid > div {

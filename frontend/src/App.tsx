@@ -8,6 +8,7 @@ import {
 } from './components/TrainingForm'
 import { MlpVisualization } from './components/MlpVisualization'
 import { PhaseNavigationButton } from './components/PhaseNavigationButton'
+import { TestPanel } from './components/TestPanel'
 import { ToastStack, useToastStack } from './components/ToastStack'
 import { createTrainingSession } from './services/mlpSessionApi'
 import { stompClient } from './services/mlpStompClient'
@@ -70,6 +71,8 @@ function App() {
   const [connectionState, setConnectionState] =
     useState<ConnectionState>('disconnected')
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
+  const [lastTrainingForm, setLastTrainingForm] =
+    useState<TrainingFormState | null>(null)
   const [phase, setPhase] = useState<Phase>(getPhaseFromPathname)
   const [testingAvailable, setTestingAvailable] = useState(false)
   const { dismissToast, pushToast, toasts } = useToastStack()
@@ -235,6 +238,7 @@ function App() {
       setOutputs(initialOutputs)
       setWeights(initialWeights)
       setCurrentSessionId(session.sessionId)
+      setLastTrainingForm(trainingForm)
       setSessionStatus(null)
       setTraining(true)
       setTestingAvailable(false)
@@ -259,6 +263,16 @@ function App() {
       })
       console.error(error)
     }
+  }
+
+  function handleStartTest(): void {
+    pushToast({
+      title: 'Test start is not configured yet',
+      message:
+        'The testing panel is ready. Connect this action to the test-session flow when it is available.',
+      tone: 'info',
+      autoDismissMs: toastDismissMs,
+    })
   }
 
   return (
@@ -324,6 +338,21 @@ function App() {
         </section>
       ) : (
         <section className="testing-layout" aria-label="Testing phase">
+          <TestPanel
+            onStartTest={handleStartTest}
+            trainingSession={
+              currentSessionId
+                ? {
+                    databaseName: lastTrainingForm?.databaseName,
+                    networkError: stats
+                      ? formatNumber(stats.networkError)
+                      : undefined,
+                    sessionId: currentSessionId,
+                    status: sessionStatus?.status.toLowerCase(),
+                  }
+                : undefined
+            }
+          />
           <PhaseNavigationButton
             label="Training Phase"
             onClick={() => navigateToPhase('training', setPhase)}
