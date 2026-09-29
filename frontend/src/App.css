@@ -137,10 +137,31 @@
 }
 
 .training-form .radio-option {
-  min-height: 28px;
+  min-height: 48px;
   flex-direction: row;
   align-items: center;
   gap: 8px;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--button-bg) 62%, var(--bg));
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.training-form .radio-option:hover:not(:has(input:disabled)) {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+}
+
+.training-form .radio-option:has(input:checked) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--button-bg));
+}
+
+.training-form .radio-option:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .training-form .radio-option input {
@@ -151,6 +172,27 @@
 .training-form .radio-option span {
   color: var(--text-h);
   font-size: 14px;
+}
+
+.number-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.training-form .actions button {
+  width: 100%;
+  min-height: 46px;
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  color: var(--text-h);
+  background: color-mix(in srgb, var(--accent) 20%, var(--button-bg));
+  font-size: 15px;
+  letter-spacing: 0.01em;
+}
+
+.training-form .actions button:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 28%, var(--button-bg));
 }
 
 .range-field > span {

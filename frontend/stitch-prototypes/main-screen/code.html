@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MLP Neural Console - High-End Redesign</title>
+<!-- Tailwind CSS CDN with Forms & Container Queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Inter & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Configuration -->
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              surface: '#090d16',
+              panel: '#0f172a',
+              card: '#162032',
+              cardHover: '#1c2942',
+              border: '#1e293b',
+              borderLight: '#334155',
+              cyan: '#06b6d4',
+              emerald: '#10b981',
+              emeraldGlow: 'rgba(16, 185, 129, 0.25)',
+              cyanGlow: 'rgba(6, 182, 212, 0.25)',
+            }
+          },
+          boxShadow: {
+            'glow-emerald': '0 0 24px -4px rgba(16, 185, 129, 0.45)',
+            'glow-cyan': '0 0 20px -4px rgba(6, 182, 212, 0.35)',
+            'inner-glow': 'inset 0 1px 0 0 rgba(255, 255, 255, 0.08)',
+          }
+        }
+      }
+    }
+  </script>
+<!-- BEGIN: Custom Visual & Canvas Styles -->
+<style data-purpose="custom-grid-and-scrollbars">
+    /* Subtle Cyberpunk Engineering Grid */
+    .bg-grid-cyber {
+      background-size: 32px 32px;
+      background-image: 
+        linear-gradient(to right, rgba(51, 65, 85, 0.15) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(51, 65, 85, 0.15) 1px, transparent 1px);
+    }
+    
+    /* Modern sleek custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #090d16;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+
+    /* Range slider custom thumb */
+    input[type=range] {
+      accent-color: #06b6d4;
+    }
+  </style>
+<!-- END: Custom Visual & Canvas Styles -->
+</head>
+<body class="bg-brand-surface text-slate-200 font-sans antialiased min-h-screen flex flex-col selection:bg-brand-cyan/20 selection:text-brand-cyan">
+<!-- BEGIN: TopBar Navigation -->
+<header class="h-14 border-b border-brand-border bg-brand-surface/80 backdrop-blur-md px-6 flex items-center justify-between z-30 sticky top-0">
+<div class="flex items-center gap-3">
+<div class="w-2.5 h-2.5 rounded-full bg-brand-cyan animate-pulse shadow-glow-cyan"></div>
+<span class="text-xs uppercase tracking-widest font-mono text-cyan-400 font-semibold">MLP FROM SCRATCH + WEBSOCKET MONITOR</span>
+<span class="text-xs px-2 py-0.5 rounded bg-brand-border text-slate-400 border border-slate-700/50 font-mono">v2.4.0-edge</span>
+</div>
+<!-- Mode & View Switcher Tabs -->
+<div class="flex items-center bg-slate-900/90 p-1 rounded-lg border border-brand-border text-xs font-medium">
+<button class="px-3.5 py-1 rounded-md transition-all bg-brand-cyan/20 text-cyan-300 shadow-sm border border-cyan-500/30" id="tab-dashboard" onclick="switchView('dashboard')">
+        Live Workstation
+      </button>
+<button class="px-3.5 py-1 rounded-md text-slate-400 hover:text-slate-200 transition-all" id="tab-left-code" onclick="switchView('leftCode')">
+        Training Panel HTML
+      </button>
+<button class="px-3.5 py-1 rounded-md text-slate-400 hover:text-slate-200 transition-all" id="tab-right-code" onclick="switchView('rightCode')">
+        Live Stats HTML
+      </button>
+</div>
+<!-- Quick Telemetry Ping & User Status -->
+<div class="flex items-center gap-4 text-xs font-mono">
+<div class="flex items-center gap-2">
+<span class="text-slate-500">PING:</span>
+<span class="text-emerald-400 font-semibold" id="ping-readout">14ms</span>
+</div>
+<div class="h-3 w-px bg-brand-border"></div>
+<div class="text-slate-400">SESSION: <span class="text-slate-200">TRAIN_SESSION_#809</span></div>
+</div>
+</header>
+<!-- END: TopBar Navigation -->
+<!-- BEGIN: Main Dashboard Viewport -->
+<main class="flex-1 flex overflow-hidden relative" id="view-dashboard">
+<!-- BEGIN: Left Training Control Panel -->
+<aside class="w-96 flex-shrink-0 border-r border-brand-border bg-brand-panel flex flex-col h-[calc(100vh-3.5rem)] z-20">
+<!-- Panel Header -->
+<div class="p-5 border-b border-brand-border/80 flex items-center justify-between">
+<div>
+<h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+            Training Panel
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-950/70 text-emerald-400 border border-emerald-800/40">CONFIG</span>
+</h1>
+<p class="text-xs text-slate-400 mt-0.5">Define dataset parameters &amp; hyper-layers</p>
+</div>
+<button class="text-xs p-1.5 hover:bg-brand-card rounded-md text-slate-400 hover:text-slate-200 transition-colors" title="Reset to default hyperparameters">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+<!-- Scrollable Form Container -->
+<div class="flex-1 overflow-y-auto p-5 space-y-6">
+<!-- SECTION 1: Database Selection Cards -->
+<div>
+<div class="flex items-center justify-between mb-2.5">
+<label class="text-xs font-semibold uppercase tracking-wider text-slate-300 font-mono">Dataset Source</label>
+<span class="text-[11px] text-cyan-400 font-mono">Normalized</span>
+</div>
+<div class="grid grid-cols-1 gap-2" id="dataset-group">
+<!-- Banknotes Option -->
+<label class="relative flex items-center justify-between p-2.5 rounded-lg border border-brand-border bg-brand-card hover:bg-brand-cardHover cursor-pointer transition-all has-[:checked]:border-cyan-500/80 has-[:checked]:bg-cyan-950/20 group">
+<div class="flex items-center gap-3">
+<input class="text-brand-cyan focus:ring-0 bg-slate-900 border-slate-700" name="database" type="radio" value="banknotes"/>
+<div>
+<div class="text-xs font-semibold text-slate-200 group-hover:text-white">Banknotes</div>
+<div class="text-[11px] text-slate-400 font-mono">4 attributes, 2 classes</div>
+</div>
+</div>
+<span class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-mono">Binary</span>
+</label>
+<!-- Raisins Option -->
+<label class="relative flex items-center justify-between p-2.5 rounded-lg border border-brand-border bg-brand-card hover:bg-brand-cardHover cursor-pointer transition-all has-[:checked]:border-cyan-500/80 has-[:checked]:bg-cyan-950/20 group">
+<div class="flex items-center gap-3">
+<input class="text-brand-cyan focus:ring-0 bg-slate-900 border-slate-700" name="database" type="radio" value="raisins"/>
+<div>
+<div class="text-xs font-semibold text-slate-200 group-hover:text-white">Raisins</div>
+<div class="text-[11px] text-slate-400 font-mono">7 attributes, 2 classes</div>
+</div>
+</div>
+<span class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-mono">Morph</span>
+</label>
+<!-- Iris Option (Selected by Default) -->
+<label class="relative flex items-center justify-between p-2.5 rounded-lg border border-cyan-500/80 bg-cyan-950/20 cursor-pointer transition-all group">
+<div class="flex items-center gap-3">
+<input checked="" class="text-brand-cyan focus:ring-0 bg-slate-900 border-slate-700" name="database" type="radio" value="iris"/>
+<div>
+<div class="text-xs font-semibold text-cyan-300 group-hover:text-white">Iris Standard</div>
+<div class="text-[11px] text-cyan-400/80 font-mono">4 attributes, 3 classes</div>
+</div>
+</div>
+<span class="text-[10px] px-2 py-0.5 rounded bg-cyan-900/40 text-cyan-300 font-mono border border-cyan-800/40">Default</span>
+</label>
+<!-- Fruits Option -->
+<label class="relative flex items-center justify-between p-2.5 rounded-lg border border-brand-border bg-brand-card hover:bg-brand-cardHover cursor-pointer transition-all has-[:checked]:border-cyan-500/80 has-[:checked]:bg-cyan-950/20 group">
+<div class="flex items-center gap-3">
+<input class="text-brand-cyan focus:ring-0 bg-slate-900 border-slate-700" name="database" type="radio" value="fruits"/>
+<div>
+<div class="text-xs font-semibold text-slate-200 group-hover:text-white">Fruits Spectral</div>
+<div class="text-[11px] text-slate-400 font-mono">17 attributes, 20 classes</div>
+</div>
+</div>
+<span class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-mono">Multi</span>
+</label>
+</div>
+</div>
+<!-- SECTION 2: Hidden Layers Slider -->
+<div class="space-y-2">
+<div class="flex items-center justify-between">
+<label class="text-xs font-semibold uppercase tracking-wider text-slate-300 font-mono" for="hidden-layers-range">Hidden Layers</label>
+<span class="px-2 py-0.5 rounded text-xs font-mono font-bold bg-cyan-950 border border-cyan-500/50 text-cyan-300" id="layers-badge">1 layer</span>
+</div>
+<div class="relative pt-1">
+<input class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer focus:outline-none" id="hidden-layers-range" max="8" min="1" oninput="document.getElementById('layers-badge').innerText = this.value + (this.value == 1 ? ' layer' : ' layers')" step="1" type="range" value="1"/>
+<div class="flex justify-between text-[10px] font-mono text-slate-500 mt-1.5">
+<span>1</span>
+<span>2</span>
+<span>4</span>
+<span>6</span>
+<span>8</span>
+</div>
+</div>
+</div>
+<!-- SECTION 3: Activation Function Select -->
+<div class="space-y-2">
+<label class="text-xs font-semibold uppercase tracking-wider text-slate-300 font-mono" for="activation-select">Activation Function</label>
+<div class="relative">
+<select class="w-full appearance-none rounded-lg bg-brand-card border border-brand-border py-2.5 px-3.5 text-xs text-slate-200 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none pr-8" id="activation-select">
+<option selected="" value="tanh">Hyperbolic tan (tanh)</option>
+<option value="sigmoid">Logistic Sigmoid</option>
+<option value="relu">Rectified Linear Unit (ReLU)</option>
+<option value="leaky_relu">Leaky ReLU (alpha=0.01)</option>
+<option value="gelu">Gaussian Error (GELU)</option>
+</select>
+<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
+<svg class="h-4 w-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+</div>
+</div>
+<!-- SECTION 4: Dual Hyperparameters (Learning Rate & Stop Error) -->
+<div class="grid grid-cols-2 gap-3">
+<!-- Learning Rate -->
+<div class="space-y-1.5">
+<label class="text-[11px] font-mono uppercase text-slate-400">Learning Rate</label>
+<div class="relative rounded-lg bg-brand-card border border-brand-border focus-within:border-cyan-500">
+<input class="w-full bg-transparent border-0 py-2 px-3 text-xs font-mono text-white focus:ring-0" min="0.0001" step="0.001" type="number" value="0.001"/>
+</div>
+</div>
+<!-- Stop Error Threshold -->
+<div class="space-y-1.5">
+<label class="text-[11px] font-mono uppercase text-slate-400">Stop Error (MSE)</label>
+<div class="relative rounded-lg bg-brand-card border border-brand-border focus-within:border-cyan-500">
+<input class="w-full bg-transparent border-0 py-2 px-3 text-xs font-mono text-white focus:ring-0" min="0.00001" step="0.001" type="number" value="0.001"/>
+</div>
+</div>
+</div>
+<!-- SECTION 5: Max Epochs Range & Editable Readout -->
+<div class="space-y-2">
+<div class="flex items-center justify-between">
+<label class="text-xs font-semibold uppercase tracking-wider text-slate-300 font-mono" for="epochs-range">Max Epochs</label>
+<span class="px-2 py-0.5 rounded text-xs font-mono font-bold bg-slate-800 text-slate-200 border border-slate-700" id="epochs-badge">2000</span>
+</div>
+<input class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer focus:outline-none" id="epochs-range" max="10000" min="100" oninput="document.getElementById('epochs-badge').innerText = this.value" step="100" type="range" value="2000"/>
+<div class="flex justify-between text-[10px] font-mono text-slate-500">
+<span>100</span>
+<span>2.5k</span>
+<span>5k</span>
+<span>7.5k</span>
+<span>10k</span>
+</div>
+</div>
+</div>
+<!-- Panel Sticky Bottom Action -->
+<div class="p-4 border-t border-brand-border/80 bg-brand-panel/90 backdrop-blur-sm">
+<button class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-sm tracking-wide shadow-glow-cyan transition-all transform active:scale-[0.98] flex items-center justify-center gap-2" id="btn-start-training" onclick="toggleTrainingState()">
+<svg class="w-4 h-4 fill-current" id="btn-icon" viewbox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+<span id="btn-label">Start training</span>
+</button>
+</div>
+</aside>
+<!-- END: Left Training Control Panel -->
+<!-- BEGIN: Central Visualizer & Neural Topology Canvas Area -->
+<section class="flex-1 flex flex-col bg-brand-surface relative overflow-hidden bg-grid-cyber">
+<!-- Top Workspace Utility Bar -->
+<div class="h-10 border-b border-brand-border/60 px-5 flex items-center justify-between bg-slate-950/40 text-xs">
+<div class="flex items-center gap-3">
+<span class="flex items-center gap-1.5 text-slate-400 font-mono">
+<span class="w-2 h-2 rounded-full bg-cyan-500"></span> Canvas: Interactive Topology View
+          </span>
+<span class="text-slate-600">|</span>
+<span class="font-mono text-slate-500 text-[11px]">Renderer: WebGL accelerated</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="px-2 py-0.5 rounded bg-brand-card hover:bg-brand-cardHover border border-brand-border text-slate-300 text-[11px] font-mono">Center View</button>
+<button class="px-2 py-0.5 rounded bg-brand-card hover:bg-brand-cardHover border border-brand-border text-slate-300 text-[11px] font-mono">Zoom [100%]</button>
+</div>
+</div>
+<!-- Visual Area -->
+<div class="flex-1 relative flex items-center justify-center p-8">
+<!-- Live Topology Mockup with Glowing Nodes -->
+<div class="w-full max-w-2xl aspect-[16/9] border border-cyan-500/20 rounded-2xl bg-slate-900/60 backdrop-blur-sm p-6 relative flex flex-col items-center justify-center shadow-2xl" id="canvas-placeholder">
+<!-- Background radial glow -->
+<div class="absolute inset-0 bg-radial from-cyan-500/5 via-transparent to-transparent rounded-2xl pointer-events-none"></div>
+<!-- Neural Network Visualizer Scheme -->
+<div class="w-full h-full flex items-center justify-around relative z-10">
+<!-- Input Layer Column (4 nodes) -->
+<div class="flex flex-col items-center gap-4">
+<span class="text-[10px] uppercase font-mono text-cyan-400 font-semibold mb-1">Inputs (4)</span>
+<div class="w-8 h-8 rounded-full border border-cyan-400/80 bg-cyan-950/80 shadow-glow-cyan flex items-center justify-center text-[10px] font-mono text-cyan-200">X₁</div>
+<div class="w-8 h-8 rounded-full border border-cyan-400/80 bg-cyan-950/80 shadow-glow-cyan flex items-center justify-center text-[10px] font-mono text-cyan-200">X₂</div>
+<div class="w-8 h-8 rounded-full border border-cyan-400/80 bg-cyan-950/80 shadow-glow-cyan flex items-center justify-center text-[10px] font-mono text-cyan-200">X₃</div>
+<div class="w-8 h-8 rounded-full border border-cyan-400/80 bg-cyan-950/80 shadow-glow-cyan flex items-center justify-center text-[10px] font-mono text-cyan-200">X₄</div>
+</div>
+<!-- Synapse Lines Simulated SVG -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none stroke-slate-700/60" stroke-width="1.2">
+<line class="stroke-cyan-500/40 animate-pulse" x1="22%" x2="50%" y1="35%" y2="40%"></line>
+<line class="stroke-emerald-500/40" x1="22%" x2="50%" y1="45%" y2="40%"></line>
+<line class="stroke-cyan-500/40" x1="22%" x2="50%" y1="55%" y2="58%"></line>
+<line class="stroke-slate-700/50" x1="22%" x2="50%" y1="65%" y2="58%"></line>
+<line class="stroke-emerald-400/50 animate-pulse" x1="50%" x2="78%" y1="40%" y2="35%"></line>
+<line class="stroke-slate-700/50" x1="50%" x2="78%" y1="40%" y2="50%"></line>
+<line class="stroke-cyan-400/50" x1="50%" x2="78%" y1="58%" y2="65%"></line>
+</svg>
+<!-- Hidden Layer Column (2 nodes) -->
+<div class="flex flex-col items-center gap-8">
+<span class="text-[10px] uppercase font-mono text-emerald-400 font-semibold mb-1">Hidden L1 (6)</span>
+<div class="w-10 h-10 rounded-full border-2 border-emerald-400 bg-emerald-950/80 shadow-glow-emerald flex items-center justify-center text-xs font-mono text-emerald-200 font-bold">H₁</div>
+<div class="w-10 h-10 rounded-full border-2 border-emerald-400 bg-emerald-950/80 shadow-glow-emerald flex items-center justify-center text-xs font-mono text-emerald-200 font-bold">H₂</div>
+</div>
+<!-- Output Layer Column (3 classes) -->
+<div class="flex flex-col items-center gap-5">
+<span class="text-[10px] uppercase font-mono text-blue-400 font-semibold mb-1">Outputs (3)</span>
+<div class="w-8 h-8 rounded-full border border-blue-400 bg-blue-950/80 flex items-center justify-center text-[10px] font-mono text-blue-200">Y₁</div>
+<div class="w-8 h-8 rounded-full border border-blue-400 bg-blue-950/80 flex items-center justify-center text-[10px] font-mono text-blue-200">Y₂</div>
+<div class="w-8 h-8 rounded-full border border-blue-400 bg-blue-950/80 flex items-center justify-center text-[10px] font-mono text-blue-200">Y₃</div>
+</div>
+</div>
+<div class="mt-4 px-3 py-1 rounded-full bg-slate-950/70 border border-slate-800 text-[11px] font-mono text-slate-400 flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active Topology: 4 In → 6 Hidden [Tanh] → 3 Out [Softmax]
+          </div>
+</div>
+</div>
+</section>
+<!-- END: Central Visualizer & Neural Topology Canvas Area -->
+<!-- BEGIN: Right Live Stats Telemetry Panel -->
+<aside class="w-96 flex-shrink-0 border-l border-brand-border bg-brand-panel flex flex-col h-[calc(100vh-3.5rem)] z-20">
+<!-- Panel Header -->
+<div class="p-5 border-b border-brand-border/80 flex items-center justify-between">
+<div>
+<h2 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+            Live stats
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-cyan-950 text-cyan-300 border border-cyan-800/40">REALTIME</span>
+</h2>
+<p class="text-xs text-slate-400 mt-0.5">Runtime feed &amp; loss telemetry</p>
+</div>
+<span class="text-xs font-mono text-slate-500">60 Hz</span>
+</div>
+<!-- Telemetry Cards Body -->
+<div class="flex-1 overflow-y-auto p-5 space-y-4">
+<!-- Connection Status Card -->
+<div class="p-3.5 rounded-xl bg-brand-card border border-brand-border flex items-center justify-between">
+<div class="space-y-0.5">
+<span class="text-[11px] font-mono uppercase text-slate-400 tracking-wider">Connection</span>
+<div class="text-sm font-mono font-bold text-emerald-400 flex items-center gap-2" id="connection-status-text">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+</span>
+              Connected (ws://127.0.0.1:8765)
+            </div>
+</div>
+<button class="px-2 py-1 rounded text-[10px] font-mono bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700" onclick="toggleConnection()">Toggle</button>
+</div>
+<!-- Training Engine State Card -->
+<div class="p-3.5 rounded-xl bg-brand-card border border-brand-border">
+<div class="flex items-center justify-between">
+<span class="text-[11px] font-mono uppercase text-slate-400 tracking-wider">Training Engine</span>
+<span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-950/80 text-amber-300 border border-amber-800/50" id="training-badge">ACTIVE</span>
+</div>
+<div class="text-xl font-bold font-mono text-white mt-1" id="training-status-text">running (forward + bp)</div>
+<div class="text-[11px] text-slate-400 mt-1">Batch optimizer: SGD with momentum (0.90)</div>
+</div>
+<!-- Epoch Progress Telemetry Card -->
+<div class="p-3.5 rounded-xl bg-brand-card border border-brand-border space-y-2">
+<div class="flex items-center justify-between">
+<span class="text-[11px] font-mono uppercase text-slate-400 tracking-wider">Epoch Progress</span>
+<span class="text-sm font-mono font-bold text-cyan-300" id="epoch-counter">1,420 <span class="text-slate-500 font-normal">/ 2,000</span></span>
+</div>
+<!-- Epoch Progress Bar -->
+<div class="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800">
+<div class="bg-gradient-to-r from-blue-500 to-cyan-400 h-2 rounded-full transition-all duration-300" id="epoch-progress-fill" style="width: 71%"></div>
+</div>
+<div class="flex justify-between items-center text-[10px] font-mono text-slate-400 pt-0.5">
+<span>Progress: 71.0%</span>
+<span>Speed: 184 it/s</span>
+</div>
+</div>
+<!-- Error / Loss Digital Metric Readout with SVG Sparkline -->
+<div class="p-3.5 rounded-xl bg-brand-card border border-brand-border space-y-2">
+<div class="flex items-center justify-between">
+<span class="text-[11px] font-mono uppercase text-slate-400 tracking-wider">Convergence Error (MSE)</span>
+<span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/40">-0.0034 / 10 ep</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="text-2xl font-mono font-bold text-emerald-400" id="error-val">0.00284</span>
+<span class="text-xs text-slate-500 font-mono">target ≤ 0.001</span>
+</div>
+<!-- Loss Sparkline -->
+<div class="pt-1">
+<svg class="w-full h-12 stroke-emerald-400 fill-emerald-500/10" viewbox="0 0 200 40">
+<path d="M0,38 Q30,35 60,25 T120,15 T160,8 T200,6 L200,40 L0,40 Z"></path>
+<path d="M0,38 Q30,35 60,25 T120,15 T160,8 T200,6" fill="none" stroke-width="2"></path>
+</svg>
+</div>
+</div>
+<!-- Topology Summary Card -->
+<div class="p-3.5 rounded-xl bg-brand-card border border-brand-border space-y-2">
+<span class="text-[11px] font-mono uppercase text-slate-400 tracking-wider block">Topology Specs</span>
+<div class="flex flex-wrap gap-1.5 pt-1">
+<span class="text-[11px] px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono">In: 4</span>
+<span class="text-[11px] px-2 py-0.5 rounded bg-cyan-950 border border-cyan-800/50 text-cyan-300 font-mono">Hidden: 1 x 6</span>
+<span class="text-[11px] px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono">Out: 3</span>
+<span class="text-[11px] px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono">Params: 45</span>
+</div>
+</div>
+</div>
+<!-- Panel Bottom Primary Testing Phase Button -->
+<div class="p-4 border-t border-brand-border/80 bg-brand-panel/90 backdrop-blur-sm">
+<button class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-sm tracking-wide shadow-glow-emerald transition-all transform active:scale-[0.98] flex items-center justify-center gap-2">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path></svg>
+          Testing Phase
+        </button>
+</div>
+</aside>
+<!-- END: Right Live Stats Telemetry Panel -->
+</main>
+<!-- END: Main Dashboard Viewport -->
+<!-- BEGIN: Isolated Modular Code Viewer (Hidden by default, switched via topbar) -->
+<div class="hidden flex-1 overflow-auto p-8 bg-brand-surface" id="view-code-panel">
+<div class="max-w-4xl mx-auto space-y-4">
+<div class="flex items-center justify-between pb-3 border-b border-brand-border">
+<div>
+<h3 class="text-base font-bold text-white" id="code-panel-title">Component Code</h3>
+<p class="text-xs text-slate-400">Copy this clean, semantic block directly into your project.</p>
+</div>
+<button class="px-3 py-1.5 rounded-lg bg-brand-cyan text-slate-950 font-bold text-xs hover:bg-cyan-300 transition-colors flex items-center gap-1.5" id="btn-copy-code" onclick="copyCodeSnippet()">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+          Copy to Clipboard
+        </button>
+</div>
+<pre class="bg-brand-panel p-5 rounded-xl border border-brand-border text-xs font-mono text-cyan-300 overflow-x-auto leading-relaxed" id="code-snippet-pre"></pre>
+</div>
+</div>
+<!-- END: Isolated Modular Code Viewer -->
+<!-- BEGIN: Script Interactions -->
+<script data-purpose="dashboard-interactivity">
+    // State management
+    let isTraining = false;
+    let isConnected = true;
+
+    // Toggle Training Button Status
+    function toggleTrainingState() {
+      isTraining = !isTraining;
+      const btnLabel = document.getElementById('btn-label');
+      const btnIcon = document.getElementById('btn-icon');
+      const trainingBadge = document.getElementById('training-badge');
+      const trainingStatusText = document.getElementById('training-status-text');
+
+      if (isTraining) {
+        btnLabel.innerText = "Stop Training";
+        btnIcon.innerHTML = `<rect x="6" y="6" width="12" height="12"></rect>`;
+        trainingBadge.className = "px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-950/80 text-emerald-300 border border-emerald-800/50";
+        trainingBadge.innerText = "TRAINING";
+        trainingStatusText.innerText = "processing epoch 1,421...";
+      } else {
+        btnLabel.innerText = "Start training";
+        btnIcon.innerHTML = `<polygon points="5 3 19 12 5 21 5 3"></polygon>`;
+        trainingBadge.className = "px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700";
+        trainingBadge.innerText = "IDLE";
+        trainingStatusText.innerText = "idle";
+      }
+    }
+
+    // Toggle WebSocket Connection
+    function toggleConnection() {
+      isConnected = !isConnected;
+      const connElem = document.getElementById('connection-status-text');
+      if (isConnected) {
+        connElem.className = "text-sm font-mono font-bold text-emerald-400 flex items-center gap-2";
+        connElem.innerHTML = `
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          Connected (ws://127.0.0.1:8765)`;
+      } else {
+        connElem.className = "text-sm font-mono font-bold text-rose-400 flex items-center gap-2";
+        connElem.innerHTML = `
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+          Disconnected`;
+      }
+    }
+
+    // Switch between interactive workstation and modular code previews
+    function switchView(viewName) {
+      const dashView = document.getElementById('view-dashboard');
+      const codeView = document.getElementById('view-code-panel');
+      const codeTitle = document.getElementById('code-panel-title');
+      const codePre = document.getElementById('code-snippet-pre');
+
+      const tabDash = document.getElementById('tab-dashboard');
+      const tabLeft = document.getElementById('tab-left-code');
+      const tabRight = document.getElementById('tab-right-code');
+
+      // Reset tabs styling
+      [tabDash, tabLeft, tabRight].forEach(tab => {
+        tab.className = "px-3.5 py-1 rounded-md text-slate-400 hover:text-slate-200 transition-all";
+      });
+
+      if (viewName === 'dashboard') {
+        dashView.classList.remove('hidden');
+        codeView.classList.add('hidden');
+        tabDash.className = "px-3.5 py-1 rounded-md transition-all bg-brand-cyan/20 text-cyan-300 shadow-sm border border-cyan-500/30";
+      } else if (viewName === 'leftCode') {
+        dashView.classList.add('hidden');
+        codeView.classList.remove('hidden');
+        tabLeft.className = "px-3.5 py-1 rounded-md transition-all bg-brand-cyan/20 text-cyan-300 shadow-sm border border-cyan-500/30";
+        codeTitle.innerText = "Left Panel: Training Panel (HTML/Tailwind)";
+        codePre.textContent = `<!-- Training Panel Component -->\n<aside class="w-96 border-r border-slate-800 bg-[#0f172a] text-slate-200 p-5 flex flex-col gap-6">\n  <div class="flex items-center justify-between">\n    <h2 class="text-lg font-bold text-white">Training Panel</h2>\n    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">CONFIG</span>\n  </div>\n\n  <!-- Database Selection -->\n  <div class="space-y-2">\n    <label class="text-xs uppercase font-mono text-slate-400">Database</label>\n    <label class="flex items-center justify-between p-2.5 rounded bg-[#162032] border border-cyan-500/80 cursor-pointer">\n      <span class="text-xs font-semibold text-cyan-300">Iris (4 attributes, 3 classes)</span>\n      <span class="text-[10px] px-2 py-0.5 bg-cyan-900/40 text-cyan-300 font-mono rounded">Default</span>\n    </label>\n  </div>\n\n  <!-- Hidden Layers -->\n  <div class="space-y-2">\n    <div class="flex justify-between text-xs">\n      <span>Hidden layers</span>\n      <span class="font-mono text-cyan-400">1</span>\n    </div>\n    <input type="range" min="1" max="8" value="1" class="w-full accent-cyan-500">\n  </div>\n\n  <!-- Start Training Button -->\n  <button class="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-bold rounded-xl shadow-lg hover:brightness-110">\n    Start training\n  </button>\n</aside>`;
+      } else if (viewName === 'rightCode') {
+        dashView.classList.add('hidden');
+        codeView.classList.remove('hidden');
+        tabRight.className = "px-3.5 py-1 rounded-md transition-all bg-brand-cyan/20 text-cyan-300 shadow-sm border border-cyan-500/30";
+        codeTitle.innerText = "Right Panel: Live Stats Telemetry (HTML/Tailwind)";
+        codePre.textContent = `<!-- Live Stats Telemetry Panel -->\n<aside class="w-96 border-l border-slate-800 bg-[#0f172a] text-slate-200 p-5 flex flex-col gap-4">\n  <div class="flex items-center justify-between border-b border-slate-800 pb-4">\n    <h2 class="text-lg font-bold text-white">Live stats</h2>\n    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-950 text-cyan-300">REALTIME</span>\n  </div>\n\n  <!-- Connection Telemetry Card -->\n  <div class="p-3.5 rounded-xl bg-[#162032] border border-slate-800 flex justify-between items-center">\n    <div>\n      <span class="text-[11px] font-mono uppercase text-slate-400">Connection</span>\n      <div class="text-sm font-mono font-bold text-emerald-400">Connected (active)</div>\n    </div>\n  </div>\n\n  <!-- Epoch Progress -->\n  <div class="p-3.5 rounded-xl bg-[#162032] border border-slate-800 space-y-2">\n    <div class="flex justify-between text-xs font-mono">\n      <span>Epoch</span>\n      <span class="text-cyan-300 font-bold">1,420 / 2,000</span>\n    </div>\n    <div class="w-full bg-slate-900 rounded-full h-2">\n      <div class="bg-cyan-400 h-2 rounded-full" style="width: 71%"></div>\n    </div>\n  </div>\n\n  <!-- Testing Phase Button -->\n  <button class="mt-auto py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-950 font-bold rounded-xl shadow-lg hover:brightness-110">\n    Testing Phase\n  </button>\n</aside>`;
+      }
+    }
+
+    // Quick Clipboard Copy Utility
+    function copyCodeSnippet() {
+      const codeText = document.getElementById('code-snippet-pre').textContent;
+      navigator.clipboard.writeText(codeText).then(() => {
+        const btn = document.getElementById('btn-copy-code');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = `<span>Copied!</span>`;
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+        }, 1800);
+      });
+    }
+  </script>
+<!-- END: Script Interactions -->
+</body></html>

@@ -23,8 +23,8 @@ const datasetOptions = [
 ]
 
 const defaultTrainingForm: TrainingFormState = {
-  databaseName: 'iris',
-  hiddenLayersNumber: 1,
+  databaseName: 'raisins',
+  hiddenLayersNumber: 2,
   activationFunctionName: 'hyperbolicTan',
   learningRate: 0.001,
   stopError: 0.001,
@@ -98,31 +98,33 @@ export function TrainingForm({
         </select>
       </label>
 
-      <label>
-        <span>Learning rate</span>
-        <input
-          type="number"
-          min="0"
-          step="0.001"
-          name="learningRate"
-          defaultValue={defaultTrainingForm.learningRate}
-          disabled={training}
-          required
-        />
-      </label>
+      <div className="number-fields">
+        <label>
+          <span>Learning rate</span>
+          <input
+            type="number"
+            min="0"
+            step="0.001"
+            name="learningRate"
+            defaultValue={defaultTrainingForm.learningRate}
+            disabled={training}
+            required
+          />
+        </label>
 
-      <label>
-        <span>Stop error</span>
-        <input
-          type="number"
-          min="0"
-          step="0.0001"
-          name="stopError"
-          defaultValue={defaultTrainingForm.stopError}
-          disabled={training}
-          required
-        />
-      </label>
+        <label>
+          <span>Stop error</span>
+          <input
+            type="number"
+            min="0"
+            step="0.0001"
+            name="stopError"
+            defaultValue={defaultTrainingForm.stopError}
+            disabled={training}
+            required
+          />
+        </label>
+      </div>
 
       <label className="range-field">
         <span>
