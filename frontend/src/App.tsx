@@ -7,7 +7,7 @@ import {
   type TrainingFormState,
 } from './components/TrainingForm'
 import { MlpVisualization } from './components/MlpVisualization'
-import { PhaseNavigationButton } from './components/PhaseNavigationButton'
+import { PhaseNavigation, type Phase } from './components/PhaseNavigation'
 import { ConfusionMatrix } from './components/ConfusionMatrix'
 import { TestPanel } from './components/TestPanel'
 import { ToastStack, useToastStack } from './components/ToastStack'
@@ -26,8 +26,6 @@ import type {
 } from './types/TrainingEvent'
 
 type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error'
-type Phase = 'training' | 'testing'
-
 type TrainingStats = Pick<
   TrainingProgressEvent | TrainingFinishedEvent,
   'epoch' | 'sampleIndex' | 'networkError'
@@ -359,11 +357,14 @@ function App() {
 
   return (
     <main className="app-shell">
+      <header className="app-header">
+        <h1>MLP from scratch + websocket monitor</h1>
+      </header>
+
       {phase === 'training' ? (
         <section className="training-layout">
         <aside className="controls-panel" aria-labelledby="training-title">
           <div className="heading-group">
-            <p className="eyebrow">MLP from scratch + websocket monitor</p>
             <h1 id="training-title">Training panel</h1>
           </div>
 
@@ -411,11 +412,6 @@ function App() {
               <strong>{topologySummary}</strong>
             </div>
           </section>
-          <PhaseNavigationButton
-            disabled={!testingAvailable}
-            label="Testing Phase"
-            onClick={() => navigateToPhase('testing', setPhase)}
-          />
         </aside>
         </section>
       ) : (
@@ -443,12 +439,13 @@ function App() {
             classSampleTotals={testClassSampleTotals}
             matrix={confusionMatrix}
           />
-          <PhaseNavigationButton
-            label="Training Phase"
-            onClick={() => navigateToPhase('training', setPhase)}
-          />
         </section>
       )}
+
+      <PhaseNavigation
+        currentPhase={phase}
+        onPhaseChange={(nextPhase) => navigateToPhase(nextPhase, setPhase)}
+      />
 
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
     </main>

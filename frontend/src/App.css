@@ -1,12 +1,36 @@
 .app-shell {
   min-height: 100svh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   padding: 24px;
   box-sizing: border-box;
 }
 
+.app-header {
+  display: flex;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+}
+
+.app-header h1 {
+  margin: 0;
+  color: var(--accent);
+  font-size: clamp(14px, 1.5vw, 18px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.2;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .training-layout {
   width: 100%;
-  min-height: calc(100svh - 48px);
+  min-height: 0;
   display: grid;
   grid-template-columns: minmax(240px, 300px) minmax(520px, 1fr) minmax(220px, 280px);
   gap: 24px;
@@ -174,28 +198,66 @@ button:disabled {
   opacity: 0.6;
 }
 
-.phase-navigation-button {
-  margin-top: auto;
+.phase-navigation {
+  position: fixed;
+  z-index: 25;
+  bottom: 24px;
+  left: 50%;
+  display: grid;
+  width: min(360px, calc(100vw - 40px));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px;
+  background: color-mix(in srgb, var(--button-bg) 86%, var(--bg));
+  box-shadow: 0 12px 28px rgb(15 23 42 / 16%);
+  transform: translateX(-50%);
+}
+
+.phase-navigation button {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 44px;
+  place-items: center;
+  overflow: hidden;
   border: 0;
   border-radius: 8px;
-  color: #fff;
-  background: #16a34a;
-  box-shadow: 0 4px 10px rgb(22 163 74 / 22%);
+  color: var(--text-h);
+  background: transparent;
+  opacity: 0.58;
+  transition: background 160ms ease, opacity 160ms ease;
 }
 
-.phase-navigation-button:hover:not(:disabled) {
+.phase-navigation button:hover:not(:disabled) {
   border-color: transparent;
-  background: #15803d;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  opacity: 0.82;
 }
 
-.phase-navigation-button:focus-visible {
-  outline: 3px solid color-mix(in srgb, #16a34a 35%, transparent);
-  outline-offset: 3px;
+.phase-navigation button[aria-current='page'] {
+  cursor: default;
+  color: var(--text-h);
+  background: color-mix(in srgb, var(--accent) 18%, var(--button-bg));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 38%, var(--border));
+  opacity: 1;
+}
+
+.phase-navigation button span {
+  position: relative;
+  z-index: 1;
+}
+
+.phase-navigation button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  outline-offset: 2px;
 }
 
 .testing-layout {
   position: relative;
-  min-height: calc(100svh - 48px);
+  min-height: 0;
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
@@ -210,13 +272,6 @@ button:disabled {
 }
 
 .test-panel .actions {
-  margin-top: 0;
-}
-
-.testing-layout > .phase-navigation-button {
-  position: absolute;
-  bottom: 0;
-  left: 0;
   margin-top: 0;
 }
 
@@ -531,33 +586,10 @@ button:disabled {
     grid-column: 1 / -1;
   }
 
-  .phase-navigation-button {
-  margin-top: auto;
-  border: 0;
-  border-radius: 8px;
-  color: #fff;
-  background: #16a34a;
-  box-shadow: 0 4px 10px rgb(22 163 74 / 22%);
-}
-
-.phase-navigation-button:hover:not(:disabled) {
-  border-color: transparent;
-  background: #15803d;
-}
-
-.phase-navigation-button:focus-visible {
-  outline: 3px solid color-mix(in srgb, #16a34a 35%, transparent);
-  outline-offset: 3px;
-}
-
-.testing-layout {
-  min-height: calc(100svh - 48px);
+  .testing-layout {
+  min-height: 0;
   display: flex;
   align-items: stretch;
-}
-
-.testing-layout .phase-navigation-button {
-  margin-top: 0;
 }
 .status-grid {
     grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -583,6 +615,20 @@ button:disabled {
     padding: 20px;
   }
 
+  .app-header {
+    height: 26px;
+    margin-bottom: 12px;
+  }
+
+  .app-header h1 {
+    font-size: clamp(12px, 3.5vw, 16px);
+  }
+
+  .phase-navigation {
+    bottom: 16px;
+    width: min(340px, calc(100vw - 32px));
+  }
+
   .training-layout,
   .status-grid,
   .details {
@@ -599,10 +645,6 @@ button:disabled {
 
   .confusion-matrix {
     width: 100%;
-  }
-
-  .testing-layout > .phase-navigation-button {
-    position: static;
   }
 
   .status-grid > div {
