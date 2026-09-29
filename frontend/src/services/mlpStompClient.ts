@@ -5,10 +5,12 @@ import {
   type StompSubscription,
 } from '@stomp/stompjs'
 import type { StartTrainingPayload } from '../types/StartTrainingPayload'
+import type { TestEvent } from '../types/TestEvent'
 import type { TrainingEvent } from '../types/TrainingEvent'
 import { apiWebSocketUrl } from '../config/apiConfig'
 
 type TrainingEventHandler = (event: TrainingEvent) => void
+type TestEventHandler = (event: TestEvent) => void
 type StompErrorHandler = (frame: Frame) => void
 type WebSocketErrorHandler = (event: Event) => void
 
@@ -106,6 +108,21 @@ export class MlpStompClient {
     )
   }
 
+  subscribeToTestEvents(
+    testSessionId: string,
+    onEvent: TestEventHandler,
+  ): StompSubscription {
+    this.assertConnected()
+
+    return this.client.subscribe(
+      `/topic/mlp/tests/${testSessionId}`,
+      (message: IMessage) => {
+        const event = JSON.parse(message.body) as TestEvent
+        onEvent(event)
+      },
+    )
+  }
+
   startTraining(payload: StartTrainingPayload): void {
     this.assertConnected()
 
@@ -120,6 +137,14 @@ export class MlpStompClient {
 
     this.client.publish({
       destination: `/app/mlp/${sessionId}/pause`,
+    })
+  }
+
+  startTest(testSessionId: string): void {
+    this.assertConnected()
+
+    this.client.publish({
+      destination: `/app/mlp/tests/${testSessionId}/start`,
     })
   }
 

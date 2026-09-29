@@ -168,6 +168,10 @@ public class MLP {
 
         List<List<Double>> entradas = converteTableEmListaDeListasDeDouble(testTableEntradas);
         List<List<Integer>> saidas = converteTableEmListaDeListasDeInteger(testTableSaidas);
+        List<Integer> classSampleTotals = contaAmostrasPorClasse(
+            saidas,
+            colunasTarget.size()
+        );
 
         if (this.activationFunction == ActivationFunction.tangenteHiperbolica) {
             for (List<Integer> saida : saidas) {
@@ -180,7 +184,12 @@ public class MLP {
         }
 
         if (testSessionId != null) {
-            emitTestStarted(testSessionId, colunasTarget, entradas.size());
+            emitTestStarted(
+                testSessionId,
+                colunasTarget,
+                entradas.size(),
+                classSampleTotals
+            );
         }
 
         return testeMultiplo(entradas, saidas, testSessionId);
@@ -583,7 +592,8 @@ public class MLP {
     private void emitTestStarted(
         String testSessionId,
         List<String> classLabels,
-        int totalSamples
+        int totalSamples,
+        List<Integer> classSampleTotals
     ) {
         this.testListener.onTestStartEvent(
             new TestStartedEvent(
@@ -591,9 +601,31 @@ public class MLP {
                 testSessionId,
                 this.sessionId,
                 totalSamples,
-                List.copyOf(classLabels)
+                List.copyOf(classLabels),
+                List.copyOf(classSampleTotals)
             )
         );
+    }
+
+    private List<Integer> contaAmostrasPorClasse(
+        List<List<Integer>> saidas,
+        int classCount
+    ) {
+        List<Integer> totals = new ArrayList<>();
+        for (int classIndex = 0; classIndex < classCount; classIndex++) {
+            totals.add(0);
+        }
+
+        for (List<Integer> saida : saidas) {
+            for (int classIndex = 0; classIndex < classCount; classIndex++) {
+                if (saida.get(classIndex) == 1) {
+                    totals.set(classIndex, totals.get(classIndex) + 1);
+                    break;
+                }
+            }
+        }
+
+        return totals;
     }
 
     private void emitTestProgress(

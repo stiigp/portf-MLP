@@ -8,11 +8,13 @@ import {
 } from './components/TrainingForm'
 import { MlpVisualization } from './components/MlpVisualization'
 import { PhaseNavigationButton } from './components/PhaseNavigationButton'
+import { ConfusionMatrix } from './components/ConfusionMatrix'
 import { TestPanel } from './components/TestPanel'
 import { ToastStack, useToastStack } from './components/ToastStack'
-import { createTrainingSession } from './services/mlpSessionApi'
+import { createTestSession, createTrainingSession } from './services/mlpSessionApi'
 import { stompClient } from './services/mlpStompClient'
 import type { StartTrainingPayload } from './types/StartTrainingPayload'
+import type { TestEvent } from './types/TestEvent'
 import type {
   ConnectionSnapshot,
   LayerTopology,
@@ -34,6 +36,9 @@ type TrainingStats = Pick<
 const initialTopology: LayerTopology[] = []
 const initialOutputs: OutputValueSnapshot[] = []
 const initialWeights: ConnectionSnapshot[] = []
+const initialClassLabels: string[] = []
+const initialClassSampleTotals: number[] = []
+const initialConfusionMatrix: number[][] = []
 
 const progressEventToStats = (
   event: TrainingProgressEvent | TrainingFinishedEvent,
@@ -75,8 +80,17 @@ function App() {
     useState<TrainingFormState | null>(null)
   const [phase, setPhase] = useState<Phase>(getPhaseFromPathname)
   const [testingAvailable, setTestingAvailable] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [testClassLabels, setTestClassLabels] = useState(initialClassLabels)
+  const [testClassSampleTotals, setTestClassSampleTotals] = useState(
+    initialClassSampleTotals,
+  )
+  const [confusionMatrix, setConfusionMatrix] = useState(
+    initialConfusionMatrix,
+  )
   const { dismissToast, pushToast, toasts } = useToastStack()
   const trainingSubscriptionRef = useRef<StompSubscription | null>(null)
+  const testSubscriptionRef = useRef<StompSubscription | null>(null)
   const lastQueueToastKeyRef = useRef<string | null>(null)
   const lastFailureToastKeyRef = useRef<string | null>(null)
 
@@ -97,6 +111,7 @@ function App() {
   useEffect(() => {
     return () => {
       trainingSubscriptionRef.current?.unsubscribe()
+      testSubscriptionRef.current?.unsubscribe()
       void stompClient.disconnect()
     }
   }, [])
@@ -154,6 +169,41 @@ function App() {
         pushToast({
           title: 'Training finished',
           message: `Final network error: ${formatNumber(event.networkError)}.`,
+          tone: 'success',
+          autoDismissMs: toastDismissMs,
+        })
+        break
+    }
+  }
+
+  function handleTestEvent(event: TestEvent): void {
+    switch (event.type) {
+      case 'TEST_STARTED':
+        setTestClassLabels(event.classLabels)
+        setTestClassSampleTotals(event.classSampleTotals)
+        setConfusionMatrix(createEmptyConfusionMatrix(event.classLabels.length))
+        setTesting(true)
+        pushToast({
+          title: 'Test started',
+          message: `Processing ${event.totalSamples} test samples.`,
+          tone: 'success',
+          autoDismissMs: toastDismissMs,
+        })
+        break
+      case 'TEST_PROGRESS':
+        setConfusionMatrix((matrix) =>
+          incrementConfusionMatrixCell(
+            matrix,
+            event.expectedClassIndex,
+            event.predictedClassIndex,
+          ),
+        )
+        break
+      case 'TEST_FINISHED':
+        setTesting(false)
+        pushToast({
+          title: 'Test finished',
+          message: `Accuracy: ${formatPercentage(event.accuracy)}.`,
           tone: 'success',
           autoDismissMs: toastDismissMs,
         })
@@ -265,14 +315,46 @@ function App() {
     }
   }
 
-  function handleStartTest(): void {
-    pushToast({
-      title: 'Test start is not configured yet',
-      message:
-        'The testing panel is ready. Connect this action to the test-session flow when it is available.',
-      tone: 'info',
-      autoDismissMs: toastDismissMs,
-    })
+  async function handleStartTest(): Promise<void> {
+    if (!currentSessionId || !testingAvailable) {
+      pushToast({
+        title: 'Test unavailable',
+        message: 'Finish a training session before starting its test.',
+        tone: 'warning',
+        autoDismissMs: toastDismissMs,
+      })
+      return
+    }
+
+    try {
+      setTesting(true)
+      setTestClassLabels(initialClassLabels)
+      setTestClassSampleTotals(initialClassSampleTotals)
+      setConfusionMatrix(initialConfusionMatrix)
+
+      const testSession = await createTestSession(currentSessionId)
+      await ensureConnected()
+
+      testSubscriptionRef.current?.unsubscribe()
+      testSubscriptionRef.current = stompClient.subscribeToTestEvents(
+        testSession.testSessionId,
+        handleTestEvent,
+      )
+      stompClient.startTest(testSession.testSessionId)
+    } catch (error) {
+      setTesting(false)
+      setConnectionState('error')
+      pushToast({
+        title: 'Failed to start test',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'The test session could not be created or connected.',
+        tone: 'danger',
+        autoDismissMs: toastDismissMs,
+      })
+      console.error(error)
+    }
   }
 
   return (
@@ -339,7 +421,10 @@ function App() {
       ) : (
         <section className="testing-layout" aria-label="Testing phase">
           <TestPanel
-            onStartTest={handleStartTest}
+            onStartTest={() => {
+              void handleStartTest()
+            }}
+            starting={testing}
             trainingSession={
               currentSessionId
                 ? {
@@ -352,6 +437,11 @@ function App() {
                   }
                 : undefined
             }
+          />
+          <ConfusionMatrix
+            classLabels={testClassLabels}
+            classSampleTotals={testClassSampleTotals}
+            matrix={confusionMatrix}
           />
           <PhaseNavigationButton
             label="Training Phase"
@@ -387,6 +477,37 @@ function formatTrainingStatus(
 
 function formatNumber(value: number): string {
   return Number.isFinite(value) ? value.toPrecision(6) : String(value)
+}
+
+function createEmptyConfusionMatrix(classCount: number): number[][] {
+  return Array.from({ length: classCount }, () => Array(classCount).fill(0))
+}
+
+function incrementConfusionMatrixCell(
+  matrix: number[][],
+  expectedClassIndex: number,
+  predictedClassIndex: number,
+): number[][] {
+  if (
+    expectedClassIndex < 0 ||
+    predictedClassIndex < 0 ||
+    expectedClassIndex >= matrix.length ||
+    predictedClassIndex >= matrix.length
+  ) {
+    return matrix
+  }
+
+  return matrix.map((row, rowIndex) =>
+    row.map((value, columnIndex) =>
+      rowIndex === expectedClassIndex && columnIndex === predictedClassIndex
+        ? value + 1
+        : value,
+    ),
+  )
+}
+
+function formatPercentage(value: number): string {
+  return `${(value * 100).toFixed(1)}%`
 }
 
 export default App
