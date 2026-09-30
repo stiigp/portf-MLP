@@ -106,6 +106,22 @@ function App() {
       .join(' | ')
   }, [topology])
 
+  const epochProgress = useMemo(() => {
+    const maxEpochs = lastTrainingForm?.maxEpochs
+
+    if (maxEpochs == null) {
+      return null
+    }
+
+    const currentEpoch = stats?.epoch ?? 0
+    const percentage = Math.min(
+      100,
+      Math.max(0, (currentEpoch / maxEpochs) * 100),
+    )
+
+    return { currentEpoch, maxEpochs, percentage }
+  }, [lastTrainingForm, stats?.epoch])
+
   useEffect(() => {
     return () => {
       trainingSubscriptionRef.current?.unsubscribe()
@@ -389,17 +405,44 @@ function App() {
         <aside className="stats-panel" aria-label="Training statistics">
           <h2>Live stats</h2>
           <section className="status-grid" aria-live="polite">
-            <div>
+            <div
+              className="connection-stat"
+              data-state={
+                connectionState === 'connected' ? 'connected' : 'disconnected'
+              }
+            >
               <span>Connection</span>
-              <strong>{connectionState}</strong>
+              <strong>
+                <i className="connection-status-dot" aria-hidden="true" />
+                {connectionState}
+              </strong>
             </div>
             <div>
               <span>Training</span>
               <strong>{formatTrainingStatus(training, sessionStatus)}</strong>
             </div>
-            <div>
-              <span>Epoch</span>
-              <strong>{stats?.epoch ?? 'N/A'}</strong>
+            <div className="epoch-progress-card">
+              <div className="epoch-progress-heading">
+                <span>Epoch progress</span>
+                <strong>
+                  {epochProgress
+                    ? `${formatInteger(epochProgress.currentEpoch)} / ${formatInteger(epochProgress.maxEpochs)}`
+                    : 'N/A'}
+                </strong>
+              </div>
+              <div
+                className="epoch-progress-bar"
+                role="progressbar"
+                aria-label="Epoch progress"
+                aria-valuemin={0}
+                aria-valuemax={epochProgress?.maxEpochs}
+                aria-valuenow={epochProgress?.currentEpoch}
+              >
+                <span
+                  style={{ width: `${epochProgress?.percentage ?? 0}%` }}
+                />
+              </div>
+              <p>{formatProgressPercentage(epochProgress?.percentage ?? 0)}</p>
             </div>
             <div>
               <span>Error</span>
@@ -474,6 +517,14 @@ function formatTrainingStatus(
 
 function formatNumber(value: number): string {
   return Number.isFinite(value) ? value.toPrecision(6) : String(value)
+}
+
+function formatInteger(value: number): string {
+  return value.toLocaleString('en-US')
+}
+
+function formatProgressPercentage(value: number): string {
+  return `${value.toFixed(1)}%`
 }
 
 function createEmptyConfusionMatrix(classCount: number): number[][] {

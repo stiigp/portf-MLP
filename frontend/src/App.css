@@ -499,6 +499,76 @@ button:disabled {
   font-weight: 700;
 }
 
+.status-grid .connection-stat strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.connection-status-dot {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #dc2626;
+  box-shadow: 0 0 0 3px rgb(220 38 38 / 14%);
+}
+
+.connection-stat[data-state='connected'] strong {
+  color: #16a34a;
+}
+
+.connection-stat[data-state='connected'] .connection-status-dot {
+  background: #16a34a;
+  box-shadow: 0 0 0 3px rgb(22 163 74 / 14%);
+}
+
+.connection-stat[data-state='disconnected'] strong {
+  color: #dc2626;
+}
+
+.status-grid .epoch-progress-card {
+  display: grid;
+  gap: 10px;
+}
+
+.epoch-progress-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.status-grid .epoch-progress-heading span {
+  margin: 0;
+}
+
+.status-grid .epoch-progress-heading strong {
+  flex-shrink: 0;
+  font-size: 15px;
+}
+
+.epoch-progress-bar {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border) 72%, var(--button-bg));
+}
+
+.epoch-progress-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 180ms ease;
+}
+
+.epoch-progress-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .reacting-text {
   border-block: 1px solid var(--border);
   padding: 20px 0;
