@@ -180,7 +180,8 @@
   gap: 12px;
 }
 
-.training-form .actions button {
+.training-form .actions button,
+.test-panel .actions button {
   width: 100%;
   min-height: 46px;
   border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
@@ -190,7 +191,8 @@
   letter-spacing: 0.01em;
 }
 
-.training-form .actions button:hover:not(:disabled) {
+.training-form .actions button:hover:not(:disabled),
+.test-panel .actions button:hover:not(:disabled) {
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 28%, var(--button-bg));
 }
@@ -567,6 +569,38 @@ button:disabled {
   margin: 0;
   color: var(--muted);
   font-size: 13px;
+}
+
+.status-grid .topology-card {
+  display: grid;
+  gap: 10px;
+}
+
+.topology-specs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.status-grid .topology-spec,
+.status-grid .topology-empty {
+  display: inline-flex;
+  align-items: baseline;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 9px 12px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--button-bg) 76%, var(--bg));
+  font-size: 15px;
+  line-height: 1;
+}
+
+.status-grid .topology-spec strong {
+  display: inline;
+  margin-left: 4px;
+  color: var(--text-h);
+  font-size: inherit;
 }
 
 .reacting-text {

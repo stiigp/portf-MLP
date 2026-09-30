@@ -92,18 +92,30 @@ function App() {
   const lastQueueToastKeyRef = useRef<string | null>(null)
   const lastFailureToastKeyRef = useRef<string | null>(null)
 
-  const topologySummary = useMemo(() => {
-    if (topology.length === 0) {
-      return 'Topology not received yet'
-    }
+  const topologySpecs = useMemo(() => {
+    const inputLayer = topology.find((layer) => layer.type === 'input')
+    const hiddenLayers = topology.filter((layer) => layer.type === 'hidden')
+    const outputLayer = topology.find((layer) => layer.type === 'output')
+    const hiddenLayerSizes = [...new Set(
+      hiddenLayers.map((layer) => layer.perceptronIds.length),
+    )]
 
-    return topology
-      .map((layer) =>
-        layer.type === 'hidden'
-          ? `${layer.type}(${layer.index + 1}): ${layer.perceptronIds.length}`
-          : `${layer.type}: ${layer.perceptronIds.length}`,
-      )
-      .join(' | ')
+    return [
+      inputLayer && {
+        label: 'In',
+        value: String(inputLayer.perceptronIds.length),
+      },
+      hiddenLayers.length > 0 && {
+        label: 'Hidden',
+        value: `${hiddenLayers.length} × ${hiddenLayerSizes.join('/')}`,
+      },
+      outputLayer && {
+        label: 'Out',
+        value: String(outputLayer.perceptronIds.length),
+      },
+    ].filter(
+      (spec): spec is { label: string; value: string } => Boolean(spec),
+    )
   }, [topology])
 
   const epochProgress = useMemo(() => {
@@ -450,9 +462,19 @@ function App() {
                 {stats ? formatNumber(stats.networkError) : 'N/A'}
               </strong>
             </div>
-            <div>
+            <div className="topology-card">
               <span>Topology</span>
-              <strong>{topologySummary}</strong>
+              <div className="topology-specs">
+                {topologySpecs.length > 0 ? (
+                  topologySpecs.map((spec) => (
+                    <span className="topology-spec" key={spec.label}>
+                      {spec.label}: <strong>{spec.value}</strong>
+                    </span>
+                  ))
+                ) : (
+                  <span className="topology-empty">N/A</span>
+                )}
+              </div>
             </div>
           </section>
         </aside>
