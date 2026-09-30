@@ -319,6 +319,57 @@ button:disabled {
   margin-top: 0;
 }
 
+.test-results {
+  width: min(100%, 240px);
+  flex: 0 0 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.test-result-metrics {
+  display: grid;
+}
+
+.test-result-metric {
+  --test-result-color: var(--muted);
+
+  display: grid;
+  gap: 6px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.test-result-metric:first-child {
+  padding-top: 8px;
+}
+
+.test-result-metric:last-child {
+  border-bottom: 0;
+}
+
+.test-result-metric span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.test-result-metric strong {
+  width: max-content;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: var(--test-result-color);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--test-result-color) 74%, #fff),
+    var(--test-result-color)
+  );
+  background-clip: text;
+  font-size: 30px;
+  font-weight: 700;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
 .test-session-details {
   display: grid;
   border: 1px solid var(--border);
@@ -787,6 +838,11 @@ button:disabled {
 
   .test-panel {
     width: 100%;
+  }
+
+  .test-results {
+    width: 100%;
+    flex-basis: auto;
   }
 
   .confusion-matrix {

@@ -9,6 +9,7 @@ import {
 import { MlpVisualization } from './components/MlpVisualization'
 import { PhaseNavigation, type Phase } from './components/PhaseNavigation'
 import { ConfusionMatrix } from './components/ConfusionMatrix'
+import { TestResults, type TestMetrics } from './components/TestResults'
 import { TestPanel } from './components/TestPanel'
 import { ToastStack, useToastStack } from './components/ToastStack'
 import { createTestSession, createTrainingSession } from './services/mlpSessionApi'
@@ -86,6 +87,7 @@ function App() {
   const [confusionMatrix, setConfusionMatrix] = useState(
     initialConfusionMatrix,
   )
+  const [testMetrics, setTestMetrics] = useState<TestMetrics | null>(null)
   const { dismissToast, pushToast, toasts } = useToastStack()
   const trainingSubscriptionRef = useRef<StompSubscription | null>(null)
   const testSubscriptionRef = useRef<StompSubscription | null>(null)
@@ -208,6 +210,7 @@ function App() {
         setTestClassLabels(event.classLabels)
         setTestClassSampleTotals(event.classSampleTotals)
         setConfusionMatrix(createEmptyConfusionMatrix(event.classLabels.length))
+        setTestMetrics(null)
         setTesting(true)
         pushToast({
           title: 'Test started',
@@ -224,12 +227,14 @@ function App() {
             event.predictedClassIndex,
           ),
         )
+        setTestMetrics(testEventToMetrics(event))
         break
       case 'TEST_FINISHED':
         setTesting(false)
+        setTestMetrics(testEventToMetrics(event))
         pushToast({
           title: 'Test finished',
-          message: `Accuracy: ${formatPercentage(event.accuracy)}.`,
+          message: `Metrics available on Test Results panel.`,
           tone: 'success',
           autoDismissMs: toastDismissMs,
         })
@@ -357,6 +362,7 @@ function App() {
       setTestClassLabels(initialClassLabels)
       setTestClassSampleTotals(initialClassSampleTotals)
       setConfusionMatrix(initialConfusionMatrix)
+      setTestMetrics(null)
 
       const testSession = await createTestSession(currentSessionId)
       await ensureConnected()
@@ -504,6 +510,7 @@ function App() {
             classSampleTotals={testClassSampleTotals}
             matrix={confusionMatrix}
           />
+          <TestResults metrics={testMetrics} />
         </section>
       )}
 
@@ -578,6 +585,17 @@ function incrementConfusionMatrixCell(
 
 function formatPercentage(value: number): string {
   return `${(value * 100).toFixed(1)}%`
+}
+
+function testEventToMetrics(
+  event: Extract<TestEvent, { type: 'TEST_PROGRESS' | 'TEST_FINISHED' }>,
+): TestMetrics {
+  return {
+    accuracy: event.accuracy,
+    precision: event.precision,
+    recall: event.recall,
+    f1Score: event.f1Score,
+  }
 }
 
 export default App
