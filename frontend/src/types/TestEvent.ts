@@ -15,6 +15,7 @@ export interface TestProgressEvent {
   expectedClassIndex: number
   accuracy: number
   precision: number
+  recall: number
   f1Score: number
 }
 
@@ -25,6 +26,7 @@ export interface TestFinishedEvent {
   correctPredictions: number
   accuracy: number
   precision: number
+  recall: number
   f1Score: number
 }
 

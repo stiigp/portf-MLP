@@ -643,6 +643,7 @@ public class MLP {
                 expectedClassIndex,
                 this.confusionMatrix.accuracy(),
                 this.confusionMatrix.macroPrecision(),
+                this.confusionMatrix.macroRecall(),
                 this.confusionMatrix.macroF1Score()
             )
         );
@@ -661,6 +662,7 @@ public class MLP {
                 correctPredictions,
                 this.confusionMatrix.accuracy(),
                 this.confusionMatrix.macroPrecision(),
+                this.confusionMatrix.macroRecall(),
                 this.confusionMatrix.macroF1Score()
             )
         );

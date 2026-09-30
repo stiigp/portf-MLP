@@ -36,6 +36,10 @@ public class ConfusionMatrix {
         return macroAverage(this::precisionForClass);
     }
 
+    public double macroRecall() {
+        return macroAverage(this::recallForClass);
+    }
+
     public double macroF1Score() {
         return macroAverage(this::f1ScoreForClass);
     }
@@ -66,17 +70,22 @@ public class ConfusionMatrix {
 
     private double f1ScoreForClass(int classIndex) {
         double precision = precisionForClass(classIndex);
+        double recall = recallForClass(classIndex);
+
+        return precision + recall == 0.0
+            ? 0.0
+            : 2.0 * precision * recall / (precision + recall);
+    }
+
+    private double recallForClass(int classIndex) {
         int expectedAsClass = 0;
         for (int predictedClassIndex = 0; predictedClassIndex < this.matrix.length; predictedClassIndex++) {
             expectedAsClass += this.matrix[predictedClassIndex][classIndex];
         }
 
-        double recall = expectedAsClass == 0
+        return expectedAsClass == 0
             ? 0.0
             : (double) this.matrix[classIndex][classIndex] / expectedAsClass;
-        return precision + recall == 0.0
-            ? 0.0
-            : 2.0 * precision * recall / (precision + recall);
     }
     public void print() {
         int n = atributosTarget.size();
