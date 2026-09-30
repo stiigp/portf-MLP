@@ -563,8 +563,8 @@ button:disabled {
   height: 10px;
   flex: 0 0 auto;
   border-radius: 50%;
-  background: #dc2626;
-  box-shadow: 0 0 0 3px rgb(220 38 38 / 14%);
+  background: #ea580c;
+  box-shadow: 0 0 0 3px rgb(234 88 12 / 14%);
 }
 
 .connection-stat[data-state='connected'] strong {
@@ -576,8 +576,17 @@ button:disabled {
   box-shadow: 0 0 0 3px rgb(22 163 74 / 14%);
 }
 
-.connection-stat[data-state='disconnected'] strong {
+.connection-stat:not([data-state='connected']) strong {
+  color: #ea580c;
+}
+
+.connection-stat[data-state='error'] strong {
   color: #dc2626;
+}
+
+.connection-stat[data-state='error'] .connection-status-dot {
+  background: #dc2626;
+  box-shadow: 0 0 0 3px rgb(220 38 38 / 14%);
 }
 
 .status-grid .epoch-progress-card {

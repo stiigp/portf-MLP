@@ -425,9 +425,7 @@ function App() {
           <section className="status-grid" aria-live="polite">
             <div
               className="connection-stat"
-              data-state={
-                connectionState === 'connected' ? 'connected' : 'disconnected'
-              }
+              data-state={connectionState}
             >
               <span>Connection</span>
               <strong>
